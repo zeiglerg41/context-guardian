@@ -1,0 +1,36 @@
+{
+  "name": "@context-guardian/ast-analyzer",
+  "version": "0.1.0",
+  "description": "AST-based pattern detection for Context Guardian using Tree-sitter",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "example": "node -e \"const { ASTAnalyzer } = require('./dist/index'); const path = require('path'); const analyzer = new ASTAnalyzer(); analyzer.analyzeProject({ rootDir: path.resolve(__dirname, 'examples/sample-react-project/src'), extensions: ['.js', '.jsx', '.ts', '.tsx'], excludeDirs: ['node_modules'], maxFiles: 100 }).then(p => { console.log('State Management:', p.stateManagement); console.log('Component Style:', p.componentStyle); console.log('Frameworks:', p.frameworks); console.log('Uses Hooks:', p.patterns.usesHooks); console.log('Uses TypeScript:', p.patterns.usesTypeScript); });\""
+  },
+  "keywords": [
+    "ast",
+    "tree-sitter",
+    "pattern-detection",
+    "code-analysis"
+  ],
+  "author": "Context Guardian",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "tree-sitter": "^0.20.4",
+    "tree-sitter-javascript": "^0.20.1",
+    "tree-sitter-typescript": "^0.20.3",
+    "tree-sitter-python": "^0.20.4"
+  }
+}

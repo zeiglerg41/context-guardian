@@ -1,0 +1,55 @@
+# Claude Code
+.claude/
+CLAUDE.md
+supabase_commands.md
+
+# Project-specific secrets
+phase-01_manus-extraction/database/supabase_db.md
+phase-1_db/supabase_db.md
+
+# Environment & Credentials
+.env
+.env.*
+.env.local
+.env.production
+*.pem
+*.key
+credentials.json
+secrets.json
+service-account*.json
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Supabase
+supabase/.temp/
+**/supabase/.temp/
+database/supabase/.temp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Test coverage
+coverage/
+.nyc_output/

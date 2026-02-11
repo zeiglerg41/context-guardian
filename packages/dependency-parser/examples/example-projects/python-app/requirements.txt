@@ -1,0 +1,9 @@
+# Example Python project dependencies
+django==4.2.0
+requests>=2.28.0
+flask~=2.3.0
+pytest==7.3.1
+
+# Database
+psycopg2-binary==2.9.6
+sqlalchemy>=2.0.0

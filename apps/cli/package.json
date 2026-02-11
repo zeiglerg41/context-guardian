@@ -1,0 +1,47 @@
+{
+  "name": "context-guardian",
+  "version": "0.1.0",
+  "description": "AI coding guardrails - Living, version-aware best practices for your AI assistant",
+  "main": "dist/index.js",
+  "bin": {
+    "guardian": "dist/cli.js",
+    "context-guardian": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "coding",
+    "assistant",
+    "best-practices",
+    "guardrails",
+    "context",
+    "copilot",
+    "cursor",
+    "cline"
+  ],
+  "author": "Context Guardian",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "axios": "^1.6.0"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@context-guardian/dependency-parser",
+  "version": "0.1.0",
+  "description": "Detects package managers and extracts dependency manifests for Context Guardian",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "example": "ts-node examples/parse-project.ts"
+  },
+  "keywords": [
+    "dependency",
+    "parser",
+    "package-manager",
+    "npm",
+    "yarn",
+    "pnpm",
+    "pip",
+    "cargo"
+  ],
+  "author": "Context Guardian",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "semver": "^7.6.0"
+  }
+}
