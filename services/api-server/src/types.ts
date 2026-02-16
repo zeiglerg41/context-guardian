@@ -35,40 +35,93 @@ export interface GeneratePlaybookRequest {
 }
 
 /**
+ * Database library record
+ */
+export interface Library {
+  id: string;
+  name: string;
+  ecosystem: string;
+  official_docs_url?: string;
+  repository_url?: string;
+  description?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/**
  * Best practice rule from database
  */
 export interface BestPractice {
-  id: number;
-  library_id: number;
-  type: 'best_practice' | 'anti_pattern' | 'security';
+  id: string;
+  library_id: string;
   title: string;
   description: string;
   category: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
+  version_range?: string;
   code_example?: string;
   source_url?: string;
-  min_version?: string;
-  max_version?: string;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+/**
+ * Anti-pattern from database
+ */
+export interface AntiPattern {
+  id: string;
+  library_id: string;
+  pattern_name: string;
+  description: string;
+  why_bad: string;
+  better_approach: string;
+  version_range?: string;
+  code_example_bad?: string;
+  code_example_good?: string;
+  source_url?: string;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+/**
+ * Security advisory from database
+ */
+export interface SecurityAdvisory {
+  id: string;
+  library_id: string;
+  cve_id?: string;
+  title: string;
+  description: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  affected_versions: string;
+  fixed_in_version?: string;
+  source_url: string;
+  published_at?: Date;
+  created_at?: Date;
+}
+
+/**
+ * Combined playbook rule (can be best practice, anti-pattern, or security advisory)
+ */
+export interface PlaybookRule {
+  type: 'best_practice' | 'anti_pattern' | 'security';
+  id: string;
+  library_id: string;
+  library_name?: string;
+  title: string;
+  description: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  category?: string;
+  version_range?: string;
+  code_example?: string;
+  source_url?: string;
 }
 
 /**
  * Response sent to CLI
  */
 export interface GeneratePlaybookResponse {
-  rules: BestPractice[];
+  rules: PlaybookRule[];
   generatedAt: string;
   cacheHit?: boolean;
-}
-
-/**
- * Database library record
- */
-export interface Library {
-  id: number;
-  name: string;
-  ecosystem: string;
-  current_version: string;
-  documentation_url: string;
-  created_at: Date;
-  updated_at: Date;
 }

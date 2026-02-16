@@ -20,6 +20,7 @@ AI coding assistants like GitHub Copilot are revolutionary for developer velocit
     - [Dependency Parser](#dep-parser)
     - [AST Analyzer](#ast-analyzer)
     - [API Server](#api-server)
+    - [Offline Fallback](#offline-fallback)
     - [CLI](#cli)
 5. [Technology Stack](#tech-stack)
 6. [Development Workflow](#workflow)
@@ -136,7 +137,8 @@ context-guardian/
 │   ├── ast-analyzer/              # Analyzes code for patterns
 │   └── shared-types/              # Future: shared TypeScript types
 ├── services/                       # Backend services
-│   └── api-server/                # Main API server
+│   ├── api-server/                # Main API server
+│   └── offline-fallback/          # SQLite fallback for offline CLI usage
 ├── apps/                           # User-facing applications
 │   ├── cli/                       # The command-line interface
 │   └── vscode-extension/          # Future: VS Code extension
@@ -171,6 +173,11 @@ context-guardian/
 - **Location**: `services/api-server/`
 - **Purpose**: The backend service that provides the core intelligence. It's the only component that connects to the database.
 - **Key Feature**: Always-on architecture (using Fly.io/Railway) with Redis caching to ensure low-latency responses.
+
+### <a name="offline-fallback"></a>Offline Fallback
+- **Location**: `services/offline-fallback/`
+- **Purpose**: Exports the top 100 libraries from PostgreSQL into a lightweight SQLite database bundled with the CLI. Ensures Context Guardian works offline or when the API is unreachable.
+- **Key Feature**: Includes best practices, anti-patterns, and security advisories with full semver version range support. Database size is ~2-5MB.
 
 ### <a name="cli"></a>CLI
 - **Location**: `apps/cli/`
