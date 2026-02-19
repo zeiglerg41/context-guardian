@@ -15,9 +15,17 @@ describe('Package Manager Detection', () => {
   test('detects pip from requirements.txt', () => {
     const pythonAppPath = path.join(examplesDir, 'python-app');
     const result = detectPackageManager(pythonAppPath);
-    
+
     expect(result.detected).toBe('pip');
     expect(result.configPath).toContain('requirements.txt');
+  });
+
+  test('detects pip from pyproject.toml (modern Python)', () => {
+    const pythonModernPath = path.join(examplesDir, 'python-modern');
+    const result = detectPackageManager(pythonModernPath);
+
+    expect(result.detected).toBe('pip');
+    expect(result.configPath).toContain('pyproject.toml');
   });
 
   test('detects cargo from Cargo.toml', () => {

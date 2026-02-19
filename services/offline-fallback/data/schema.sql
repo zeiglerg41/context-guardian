@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS anti_patterns (
     description TEXT NOT NULL,
     why_bad TEXT NOT NULL,
     better_approach TEXT NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'medium' CHECK(severity IN ('critical', 'high', 'medium', 'low')),
     version_range TEXT,
     code_example_bad TEXT,
     code_example_good TEXT,

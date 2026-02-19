@@ -26,6 +26,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@context-guardian/types": "file:../../packages/types",
     "@types/semver": "^7.7.1",
     "better-sqlite3": "^9.4.0",
     "dotenv": "^16.4.0",

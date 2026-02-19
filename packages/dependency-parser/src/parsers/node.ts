@@ -9,6 +9,8 @@ interface PackageJson {
   version?: string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
 }
 
 /**
@@ -47,6 +49,33 @@ export function parsePackageJson(packageJsonPath: string): {
           version: cleanVersion(version),
           isDev: true,
         });
+      }
+    }
+
+    // Parse peer dependencies
+    if (packageJson.peerDependencies) {
+      for (const [name, version] of Object.entries(packageJson.peerDependencies)) {
+        // Skip if already listed as a prod or dev dependency
+        if (!dependencies.some(d => d.name === name)) {
+          dependencies.push({
+            name,
+            version: cleanVersion(version),
+            isPeer: true,
+          });
+        }
+      }
+    }
+
+    // Parse optional dependencies (platform-specific like fsevents)
+    if (packageJson.optionalDependencies) {
+      for (const [name, version] of Object.entries(packageJson.optionalDependencies)) {
+        if (!dependencies.some(d => d.name === name)) {
+          dependencies.push({
+            name,
+            version: cleanVersion(version),
+            isOptional: true,
+          });
+        }
       }
     }
 

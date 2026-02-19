@@ -1,0 +1,91 @@
+{
+  "name": "context-guardian",
+  "displayName": "Context Guardian",
+  "description": "Automatically generate AI coding guardrails based on your project's dependencies",
+  "version": "0.1.0",
+  "publisher": "context-guardian",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "keywords": [
+    "ai",
+    "copilot",
+    "cursor",
+    "best-practices",
+    "code-quality"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "context-guardian.init",
+        "title": "Context Guardian: Initialize Playbook"
+      },
+      {
+        "command": "context-guardian.sync",
+        "title": "Context Guardian: Sync Playbook"
+      },
+      {
+        "command": "context-guardian.enable",
+        "title": "Context Guardian: Enable Auto-Sync"
+      },
+      {
+        "command": "context-guardian.disable",
+        "title": "Context Guardian: Disable Auto-Sync"
+      },
+      {
+        "command": "context-guardian.viewPlaybook",
+        "title": "Context Guardian: View Playbook"
+      }
+    ],
+    "configuration": {
+      "title": "Context Guardian",
+      "properties": {
+        "contextGuardian.autoSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically sync playbook when dependencies change"
+        },
+        "contextGuardian.cliPath": {
+          "type": "string",
+          "default": "guardian",
+          "description": "Path to Context Guardian CLI executable"
+        },
+        "contextGuardian.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notifications when playbook is updated"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.50.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/context-guardian/vscode-extension"
+  },
+  "license": "MIT"
+}

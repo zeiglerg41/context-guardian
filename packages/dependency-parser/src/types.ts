@@ -1,41 +1,10 @@
 /**
- * Supported package manager ecosystems
+ * Re-export shared types for dependency parsing
  */
-export type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'pip' | 'cargo' | 'unknown';
-
-/**
- * A single dependency with its version
- */
-export interface Dependency {
-  name: string;
-  version: string;
-  isDev?: boolean;
-}
-
-/**
- * Complete dependency manifest for a project
- */
-export interface DependencyManifest {
-  packageManager: PackageManager;
-  dependencies: Dependency[];
-  projectName?: string;
-  projectVersion?: string;
-}
-
-/**
- * Configuration file paths for each package manager
- */
-export interface PackageManagerConfig {
-  manager: PackageManager;
-  configFile: string;
-  lockFile?: string;
-}
-
-/**
- * Result of package manager detection
- */
-export interface DetectionResult {
-  detected: PackageManager;
-  configPath: string;
-  lockFilePath?: string;
-}
+export type {
+  PackageManager,
+  Dependency,
+  DependencyManifest,
+  PackageManagerConfig,
+  DetectionResult,
+} from '@context-guardian/types';

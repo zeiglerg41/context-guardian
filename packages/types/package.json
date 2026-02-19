@@ -1,0 +1,20 @@
+{
+  "name": "@context-guardian/types",
+  "version": "0.1.0",
+  "description": "Shared type definitions for Context Guardian",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "types",
+    "context-guardian"
+  ],
+  "author": "Context Guardian",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,5 +1,12 @@
 import Database from 'better-sqlite3';
 import semver from 'semver';
+import type {
+  Dependency,
+  PlaybookRule,
+  BestPracticeRow as BestPractice,
+  AntiPattern,
+  SecurityAdvisory,
+} from '@context-guardian/types';
 
 /**
  * SQLite offline client for Context Guardian CLI
@@ -40,7 +47,7 @@ export class OfflineClient {
         library_name: libraryName,
         title: ap.pattern_name,
         description: `${ap.description}\n\n**Why it's bad:** ${ap.why_bad}\n\n**Better approach:** ${ap.better_approach}`,
-        severity: 'medium' as const,
+        severity: ap.severity || ('medium' as const),
         category: 'anti-pattern',
         version_range: ap.version_range,
         code_example: ap.code_example_bad
@@ -127,6 +134,7 @@ export class OfflineClient {
         ap.description,
         ap.why_bad,
         ap.better_approach,
+        ap.severity,
         ap.version_range,
         ap.code_example_bad,
         ap.code_example_good,
@@ -245,66 +253,13 @@ export class OfflineClient {
   }
 }
 
+// Re-export shared types for consumers
+export type { Dependency, PlaybookRule, AntiPattern, SecurityAdvisory } from '@context-guardian/types';
+export type { BestPracticeRow as BestPractice } from '@context-guardian/types';
+
 /**
- * Types
+ * Offline-specific types
  */
-export interface Dependency {
-  name: string;
-  version: string;
-}
-
-export interface BestPractice {
-  id: string;
-  library_id: string;
-  title: string;
-  description: string;
-  category: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  version_range?: string;
-  code_example?: string;
-  source_url?: string;
-}
-
-export interface AntiPattern {
-  id: string;
-  library_id: string;
-  pattern_name: string;
-  description: string;
-  why_bad: string;
-  better_approach: string;
-  version_range?: string;
-  code_example_bad?: string;
-  code_example_good?: string;
-  source_url?: string;
-}
-
-export interface SecurityAdvisory {
-  id: string;
-  library_id: string;
-  cve_id?: string;
-  title: string;
-  description: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  affected_versions: string;
-  fixed_in_version?: string;
-  source_url: string;
-  published_at?: string;
-}
-
-export interface PlaybookRule {
-  type: 'best_practice' | 'anti_pattern' | 'security';
-  id: string;
-  library_id: string;
-  library_name: string;
-  title: string;
-  description: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  category?: string;
-  version_range?: string;
-  code_example?: string;
-  source_url?: string;
-}
-
 export interface ExportMetadata {
   id: number;
   export_date: string;

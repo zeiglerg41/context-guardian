@@ -32,6 +32,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@context-guardian/types": "file:../types",
     "semver": "^7.6.0"
   }
 }

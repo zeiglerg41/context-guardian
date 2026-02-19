@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { AnalysisPayload, PlaybookResponse } from '../types';
+import { GeneratePlaybookRequest, GeneratePlaybookResponse } from '../types';
 import { getConfig } from './config';
 
 /**
@@ -11,7 +11,7 @@ export class ApiClient {
 
   constructor(apiUrl?: string, apiKey?: string) {
     const config = getConfig();
-    
+
     this.client = axios.create({
       baseURL: apiUrl || config.apiUrl,
       timeout: 30000,
@@ -31,13 +31,10 @@ export class ApiClient {
 
   /**
    * Generates a playbook by sending analysis payload to the API
-   * 
-   * @param payload - Project analysis data
-   * @returns Playbook response with best practices
    */
-  async generatePlaybook(payload: AnalysisPayload): Promise<PlaybookResponse> {
+  async generatePlaybook(payload: GeneratePlaybookRequest): Promise<GeneratePlaybookResponse> {
     try {
-      const response = await this.client.post<PlaybookResponse>(
+      const response = await this.client.post<GeneratePlaybookResponse>(
         '/api/v1/generate-playbook',
         payload
       );
@@ -59,8 +56,6 @@ export class ApiClient {
 
   /**
    * Health check to verify API is reachable
-   * 
-   * @returns True if API is healthy
    */
   async healthCheck(): Promise<boolean> {
     try {

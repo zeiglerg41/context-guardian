@@ -1,6 +1,7 @@
 import { detectPackageManager } from './detector';
 import { parsePackageJson } from './parsers/node';
 import { parseRequirementsTxt } from './parsers/python';
+import { parsePyprojectToml } from './parsers/pyproject';
 import { parseCargoToml } from './parsers/rust';
 import { DependencyManifest, PackageManager } from './types';
 
@@ -42,11 +43,21 @@ export function analyzeDependencies(projectPath: string): DependencyManifest {
     }
 
     case 'pip': {
-      const dependencies = parseRequirementsTxt(detection.configPath);
-      manifest = {
-        packageManager: 'pip',
-        dependencies,
-      };
+      if (detection.configPath.endsWith('.toml')) {
+        const parsed = parsePyprojectToml(detection.configPath);
+        manifest = {
+          packageManager: 'pip',
+          dependencies: parsed.dependencies,
+          projectName: parsed.projectName,
+          projectVersion: parsed.projectVersion,
+        };
+      } else {
+        const dependencies = parseRequirementsTxt(detection.configPath);
+        manifest = {
+          packageManager: 'pip',
+          dependencies,
+        };
+      }
       break;
     }
 
@@ -73,4 +84,5 @@ export * from './types';
 export { detectPackageManager } from './detector';
 export { parsePackageJson, cleanVersion } from './parsers/node';
 export { parseRequirementsTxt } from './parsers/python';
+export { parsePyprojectToml } from './parsers/pyproject';
 export { parseCargoToml } from './parsers/rust';

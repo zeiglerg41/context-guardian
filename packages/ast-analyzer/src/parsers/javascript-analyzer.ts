@@ -36,11 +36,27 @@ export class JavaScriptAnalyzer {
     const imports: string[] = [];
 
     const traverse = (n: SyntaxNode) => {
+      // ESM: import ... from '...'
       if (n.type === 'import_statement') {
         const source = findChildByType(n, 'string');
         if (source) {
           const importPath = source.text.replace(/['"]/g, '');
           imports.push(importPath);
+        }
+      }
+
+      // CJS: require('...')
+      if (n.type === 'call_expression') {
+        const callee = n.namedChildren[0];
+        if (callee && callee.type === 'identifier' && callee.text === 'require') {
+          const args = findChildByType(n, 'arguments');
+          if (args && args.namedChildren.length > 0) {
+            const firstArg = args.namedChildren[0];
+            if (firstArg.type === 'string') {
+              const requirePath = firstArg.text.replace(/['"]/g, '');
+              imports.push(requirePath);
+            }
+          }
         }
       }
 

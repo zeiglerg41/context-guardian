@@ -145,6 +145,7 @@ export class PlaybookService {
         ap.description,
         ap.why_bad,
         ap.better_approach,
+        ap.severity,
         ap.version_range,
         ap.code_example_bad,
         ap.code_example_good,
@@ -164,7 +165,7 @@ export class PlaybookService {
       library_name: row.library_name,
       title: row.pattern_name,
       description: `${row.description}\n\n**Why it's bad:** ${row.why_bad}\n\n**Better approach:** ${row.better_approach}`,
-      severity: 'medium' as const, // Anti-patterns default to medium
+      severity: row.severity || 'medium',
       category: 'anti-pattern',
       version_range: row.version_range,
       code_example: row.code_example_bad

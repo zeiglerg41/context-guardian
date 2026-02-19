@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TreeSitterWrapper } from './parsers/tree-sitter-wrapper';
 import { JavaScriptAnalyzer } from './parsers/javascript-analyzer';
+import { PythonAnalyzer } from './parsers/python-analyzer';
 import { StateManagementDetector } from './detectors/state-management-detector';
 import { ComponentStyleDetector } from './detectors/component-style-detector';
 import { FrameworkDetector } from './detectors/framework-detector';
@@ -13,6 +14,7 @@ import { AnalysisConfig, FileAnalysis, ProjectPatterns } from './types';
 export class ASTAnalyzer {
   private treeParser: TreeSitterWrapper;
   private jsAnalyzer: JavaScriptAnalyzer;
+  private pyAnalyzer: PythonAnalyzer;
   private stateDetector: StateManagementDetector;
   private styleDetector: ComponentStyleDetector;
   private frameworkDetector: FrameworkDetector;
@@ -20,6 +22,7 @@ export class ASTAnalyzer {
   constructor() {
     this.treeParser = new TreeSitterWrapper();
     this.jsAnalyzer = new JavaScriptAnalyzer();
+    this.pyAnalyzer = new PythonAnalyzer();
     this.stateDetector = new StateManagementDetector();
     this.styleDetector = new ComponentStyleDetector();
     this.frameworkDetector = new FrameworkDetector();
@@ -58,8 +61,12 @@ export class ASTAnalyzer {
 
     try {
       const tree = this.treeParser.parse(sourceCode, ext);
+
+      if (ext === '.py') {
+        return this.pyAnalyzer.analyze(tree, filePath);
+      }
+
       const isTypeScript = ext === '.ts' || ext === '.tsx';
-      
       return this.jsAnalyzer.analyze(tree, filePath, isTypeScript);
     } catch (error) {
       return null;
@@ -115,12 +122,17 @@ export class ASTAnalyzer {
     // Detect frameworks
     const frameworks = this.frameworkDetector.detect(analyses);
 
-    // Extract common imports
+    // Extract common imports (both external packages and internal modules)
     const importCounts = new Map<string, number>();
     for (const analysis of analyses) {
       for (const imp of analysis.imports) {
-        // Only count relative imports (internal modules)
-        if (imp.startsWith('.') || imp.startsWith('/')) {
+        // For external packages, normalize to base package name
+        if (!imp.startsWith('.') && !imp.startsWith('/')) {
+          const basePkg = imp.startsWith('@')
+            ? imp.split('/').slice(0, 2).join('/')
+            : imp.split('/')[0];
+          importCounts.set(basePkg, (importCounts.get(basePkg) || 0) + 1);
+        } else {
           importCounts.set(imp, (importCounts.get(imp) || 0) + 1);
         }
       }
@@ -128,7 +140,7 @@ export class ASTAnalyzer {
 
     const commonImports = Array.from(importCounts.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .slice(0, 20)
       .map(([imp]) => imp);
 
     // Detect coding patterns
@@ -156,3 +168,4 @@ export class ASTAnalyzer {
 export * from './types';
 export { TreeSitterWrapper } from './parsers/tree-sitter-wrapper';
 export { JavaScriptAnalyzer } from './parsers/javascript-analyzer';
+export { PythonAnalyzer } from './parsers/python-analyzer';

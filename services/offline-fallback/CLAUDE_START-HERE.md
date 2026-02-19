@@ -18,165 +18,73 @@ Set up the export scripts, generate a SQLite database from PostgreSQL, validate 
 
 ### Phase 0: Monorepo Setup (If Not Done Already)
 
-- [ ] **Move this package to the monorepo**
-  ```bash
-  mkdir -p ~/context-guardian/packages
-  mv ~/offline-fallback ~/context-guardian/packages/offline-fallback
-  cd ~/context-guardian/packages/offline-fallback
-  ```
+- [x] **Move this package to the monorepo**
+  - Located at `services/offline-fallback/` in the monorepo
 
 ### Phase 1: Environment Setup
 
-- [ ] **Ensure Node.js is installed** (v18 or higher)
-  ```bash
-  node --version
-  ```
+- [x] **Ensure Node.js is installed** (v18 or higher)
+  - Confirmed: v20.20.0
 
-- [ ] **Navigate to the offline fallback directory**
-  ```bash
-  cd ~/context-guardian/packages/offline-fallback
-  ```
+- [x] **Navigate to the offline fallback directory**
+  - `cd ~/projects/context-guardian/services/offline-fallback`
 
-- [ ] **Install dependencies**
-  ```bash
-  npm install
-  ```
-  - Should install better-sqlite3, postgres, tsx
-  - better-sqlite3 compiles native bindings (may take a minute)
+- [x] **Install dependencies**
+  - All dependencies installed (better-sqlite3, postgres, tsx, etc.)
 
-- [ ] **Copy environment template**
-  ```bash
-  cp .env.example .env
-  ```
+- [x] **Copy environment template**
+  - `.env` is configured
 
-- [ ] **Configure environment variables**
-  ```bash
-  # Edit .env
-  DATABASE_URL=postgresql://user:password@host:5432/context_guardian
-  TOP_N_LIBRARIES=100
-  SQLITE_OUTPUT_PATH=./data/offline-fallback.db
-  ```
+- [x] **Configure environment variables**
+  - `DATABASE_URL` set to Supabase connection string
 
 ### Phase 2: Database Connection
 
-- [ ] **Ensure PostgreSQL database is accessible**
-  - You need the database from Package #1 (context-guardian-db)
-  - It should be running and seeded with data
+- [x] **Ensure PostgreSQL database is accessible**
+  - Supabase database is running and seeded with 3 libraries
 
-- [ ] **Test PostgreSQL connection**
-  ```bash
-  node -e "const postgres = require('postgres'); const sql = postgres(process.env.DATABASE_URL); sql\`SELECT 1\`.then(() => { console.log('✓ Connected'); process.exit(0); }).catch(err => { console.error('✗ Failed:', err.message); process.exit(1); });"
-  ```
+- [x] **Test PostgreSQL connection**
+  - Connection verified, 3 libraries found
 
 ### Phase 3: Export to SQLite
 
-- [ ] **Run the export script**
-  ```bash
-  npm run export
-  ```
-  - Should connect to PostgreSQL
-  - Should create `data/offline-fallback.db`
-  - Should show progress and statistics
-  - Expected output:
-    ```
-    ✓ Found 100 libraries
-    ✓ Inserted 100 libraries
-    ✓ Found XXX best practices
-    ✓ Inserted XXX best practices
-    ✅ Export complete!
-    📁 Output: ./data/offline-fallback.db
-    📦 Size: X.XX MB
-    ```
+- [x] **Run the export script**
+  - Exported 3 libraries, 11 best practices, 5 anti-patterns, 1 security advisory
+  - Output: `data/offline-fallback.db` (0.08 MB — small because only 3 libraries seeded so far)
 
-- [ ] **Verify the SQLite file was created**
-  ```bash
-  ls -lh data/offline-fallback.db
-  ```
-  - Should be 2-5 MB for 100 libraries
+- [x] **Verify the SQLite file was created**
+  - `data/offline-fallback.db` exists (will grow to 2-5 MB once 100 libraries are seeded)
 
 ### Phase 4: Validate the Export
 
-- [ ] **Run the validation script**
-  ```bash
-  npm run validate
-  ```
-  - Should display library count, rule count
-  - Should run sample queries
-  - Should test version-aware queries
-  - Expected output:
-    ```
-    ✓ Libraries: 100
-    ✓ Best Practices: XXX
-    ✓ Export Date: ...
-    Top 5 Libraries:
-      - react (npm)
-      - ...
-    Critical Rules: XX
-    Security Rules: XX
-    🧪 Testing version query for React 18.2.0:
-      - [medium] Use hooks
-    ✅ Validation complete!
-    ```
+- [x] **Run the validation script**
+  - Libraries: 3, Best Practices: 11, version filtering works
+  - Sample queries verified (React 18.2.0 version-aware query returns correct rules)
+  - Validation complete
 
 ### Phase 5: Build TypeScript
 
-- [ ] **Compile TypeScript**
-  ```bash
-  npm run build
-  ```
-  - Should create `dist/` directory
-  - Should compile `offline-client.ts`
+- [x] **Compile TypeScript**
+  - Build succeeds with no errors
 
-- [ ] **Verify compiled output**
-  ```bash
-  ls -la dist/
-  ```
-  - Should see `offline-client.js`, `index.js`, type definitions
+- [x] **Verify compiled output**
+  - `dist/` contains `offline-client.js`, `index.js`, type definitions, and source maps
 
 ### Phase 6: Test the Offline Client
 
-- [ ] **Run the test suite**
-  ```bash
-  npm test
-  ```
-  - All tests should pass
-  - Tests create a temporary SQLite database
-  - Tests verify querying, metadata, stats
+- [x] **Run the test suite**
+  - 8/8 tests pass (best practices, version filtering, anti-patterns, security advisories, combined rules, library existence, metadata, stats)
 
-- [ ] **Manual test in Node REPL**
-  ```bash
-  node
-  ```
-  ```javascript
-  const { OfflineClient } = require('./dist/offline-client');
-  const client = new OfflineClient('./data/offline-fallback.db');
-  
-  // Test query
-  const rules = client.queryBestPractices('react', '18.2.0');
-  console.log(`Found ${rules.length} rules for React 18.2.0`);
-  
-  // Test library check
-  console.log('Has React:', client.hasLibrary('react'));
-  console.log('Has Nonexistent:', client.hasLibrary('nonexistent'));
-  
-  // Get stats
-  const stats = client.getStats();
-  console.log('Stats:', stats);
-  
-  client.close();
-  ```
+- [x] **Manual test in Node REPL**
+  - Verified via `tsx`: `getBestPractices('react', '18.2.0')` returns 5 results in 0.32ms
 
 ### Phase 7: Code Quality & Understanding
 
-- [ ] **Read the export script** (`scripts/export-from-postgres.ts`)
-  - How does it connect to PostgreSQL?
-  - How does it determine "top N" libraries?
-  - How does it handle transactions for performance?
+- [x] **Read the export script** (`scripts/export-from-postgres.ts`)
+  - Connects via `postgres` lib using `DATABASE_URL`, fetches top N libraries by popularity, uses SQLite transactions for bulk inserts
 
-- [ ] **Read the offline client** (`src/offline-client.ts`)
-  - How does it query by version ranges?
-  - How does it handle multiple dependencies?
-  - What methods are exposed for the CLI?
+- [x] **Read the offline client** (`src/offline-client.ts`)
+  - Queries by version ranges using `semver.satisfies()`, exposes `queryBestPractices`, `queryAntiPatterns`, `querySecurityAdvisories`, `queryAllRules`, `hasLibrary`, `getStats`, `getMetadata`
 
 - [ ] **Review the SQLite schema** (`data/schema.sql`)
   - How does it differ from PostgreSQL schema?
@@ -203,29 +111,11 @@ Set up the export scripts, generate a SQLite database from PostgreSQL, validate 
 
 ### Phase 9: Performance Testing
 
-- [ ] **Test query performance**
-  ```bash
-  node -e "
-  const { OfflineClient } = require('./dist/offline-client');
-  const client = new OfflineClient('./data/offline-fallback.db');
-  
-  console.time('Query');
-  const rules = client.queryBestPractices('react', '18.2.0');
-  console.timeEnd('Query');
-  
-  console.log('Rules found:', rules.length);
-  client.close();
-  "
-  ```
-  - Should be <10ms for single library query
-  - Should be <100ms for 20+ libraries
+- [x] **Test query performance**
+  - Single library query: 0.32ms (well under 10ms target)
 
-- [ ] **Test database size**
-  ```bash
-  du -h data/offline-fallback.db
-  ```
-  - Should be 2-5 MB for 100 libraries
-  - Acceptable for npm package bundling
+- [x] **Test database size**
+  - Current: 0.08 MB (3 libraries). Will scale to 2-5 MB with 100 libraries.
 
 ### Phase 10: Understand the Bigger Picture
 
@@ -247,11 +137,11 @@ Set up the export scripts, generate a SQLite database from PostgreSQL, validate 
 ## Success Criteria
 
 You're done when:
-1. ✅ SQLite database exported successfully from PostgreSQL
-2. ✅ Validation script confirms database integrity
-3. ✅ Offline client queries work correctly
-4. ✅ Tests pass
-5. ✅ You understand how CLI will integrate this
+1. [x] SQLite database exported successfully from PostgreSQL
+2. [x] Validation script confirms database integrity
+3. [x] Offline client queries work correctly
+4. [x] Tests pass (8/8)
+5. [ ] You understand how CLI will integrate this (Phase 8 still open)
 
 ---
 

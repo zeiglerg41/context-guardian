@@ -41,6 +41,7 @@ describe('OfflineClient', () => {
         description TEXT NOT NULL,
         why_bad TEXT NOT NULL,
         better_approach TEXT NOT NULL,
+        severity TEXT NOT NULL DEFAULT 'medium',
         version_range TEXT,
         code_example_bad TEXT,
         code_example_good TEXT,
@@ -85,9 +86,9 @@ describe('OfflineClient', () => {
 
     // Anti-pattern
     db.prepare(`
-      INSERT INTO anti_patterns (id, library_id, pattern_name, description, why_bad, better_approach, version_range)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run('ap-1', 'lib-1', 'Mutating state directly', 'Directly modifying state object', 'Causes rendering issues', 'Use setState or useState', '>=0.0.0');
+      INSERT INTO anti_patterns (id, library_id, pattern_name, description, why_bad, better_approach, severity, version_range)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('ap-1', 'lib-1', 'Mutating state directly', 'Directly modifying state object', 'Causes rendering issues', 'Use setState or useState', 'high', '>=0.0.0');
 
     // Security advisory
     db.prepare(`

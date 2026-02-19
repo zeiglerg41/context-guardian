@@ -1,5 +1,5 @@
 import { PlaybookGenerator } from '../src/utils/playbook-generator';
-import { PlaybookResponse } from '../src/types';
+import { GeneratePlaybookResponse } from '../src/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -21,10 +21,12 @@ describe('PlaybookGenerator', () => {
   });
 
   test('generates a .guardian.md file', () => {
-    const mockResponse: PlaybookResponse = {
+    const mockResponse: GeneratePlaybookResponse = {
       rules: [
         {
           type: 'best_practice',
+          id: 'bp-1',
+          library_id: 'lib-1',
           title: 'Use hooks in React 18+',
           description: 'Prefer hooks over class components.',
           category: 'best-practice',
@@ -41,10 +43,12 @@ describe('PlaybookGenerator', () => {
   });
 
   test('includes all severity levels', () => {
-    const mockResponse: PlaybookResponse = {
+    const mockResponse: GeneratePlaybookResponse = {
       rules: [
         {
           type: 'security',
+          id: 'sec-1',
+          library_id: 'lib-1',
           title: 'Critical security issue',
           description: 'Fix this immediately.',
           category: 'security',
@@ -52,6 +56,8 @@ describe('PlaybookGenerator', () => {
         },
         {
           type: 'best_practice',
+          id: 'bp-1',
+          library_id: 'lib-1',
           title: 'High priority',
           description: 'Important best practice.',
           category: 'best-practice',
@@ -59,6 +65,8 @@ describe('PlaybookGenerator', () => {
         },
         {
           type: 'best_practice',
+          id: 'bp-2',
+          library_id: 'lib-1',
           title: 'Medium priority',
           description: 'Good to follow.',
           category: 'best-practice',
@@ -66,6 +74,8 @@ describe('PlaybookGenerator', () => {
         },
         {
           type: 'best_practice',
+          id: 'bp-3',
+          library_id: 'lib-1',
           title: 'Low priority',
           description: 'Nice to have.',
           category: 'best-practice',
@@ -85,10 +95,12 @@ describe('PlaybookGenerator', () => {
   });
 
   test('includes code examples when present', () => {
-    const mockResponse: PlaybookResponse = {
+    const mockResponse: GeneratePlaybookResponse = {
       rules: [
         {
           type: 'best_practice',
+          id: 'bp-1',
+          library_id: 'lib-1',
           title: 'Example with code',
           description: 'This has a code example.',
           category: 'best-practice',

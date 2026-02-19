@@ -53,7 +53,15 @@ export function detectPackageManager(projectPath: string): DetectionResult {
     };
   }
 
-  // Check for Python (pip)
+  // Check for Python — pyproject.toml takes priority over requirements.txt
+  const pyprojectPath = path.join(normalizedPath, 'pyproject.toml');
+  if (fs.existsSync(pyprojectPath)) {
+    return {
+      detected: 'pip',
+      configPath: pyprojectPath,
+    };
+  }
+
   const requirementsPath = path.join(normalizedPath, 'requirements.txt');
   if (fs.existsSync(requirementsPath)) {
     return {

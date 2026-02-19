@@ -1,19 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { BestPractice, PlaybookResponse } from '../types';
+import { PlaybookRule, GeneratePlaybookResponse } from '../types';
 
 /**
- * Generates a .guardian.md playbook file from API response
+ * Legacy playbook generator for CLI (generates simple .guardian.md from API response)
+ * Note: For full-featured generation, use @context-guardian/playbook-generator
  */
 export class PlaybookGenerator {
   /**
    * Formats best practices into a Markdown playbook
-   * 
-   * @param response - API response with best practices
-   * @param projectPath - Path to the project directory
-   * @returns Path to the generated playbook file
    */
-  generate(response: PlaybookResponse, projectPath: string): string {
+  generate(response: GeneratePlaybookResponse, projectPath: string): string {
     const markdown = this.formatAsMarkdown(response);
     const playbookPath = path.join(projectPath, '.guardian.md');
 
@@ -25,10 +22,9 @@ export class PlaybookGenerator {
   /**
    * Formats the playbook response as Markdown
    */
-  private formatAsMarkdown(response: PlaybookResponse): string {
+  private formatAsMarkdown(response: GeneratePlaybookResponse): string {
     const lines: string[] = [];
 
-    // Header
     lines.push('# Context Guardian Playbook');
     lines.push('');
     lines.push('> **Auto-generated best practices for your AI coding assistant**');
@@ -37,45 +33,39 @@ export class PlaybookGenerator {
     lines.push('---');
     lines.push('');
 
-    // Group rules by severity
-    const critical = response.rules.filter(r => r.severity === 'critical');
-    const high = response.rules.filter(r => r.severity === 'high');
-    const medium = response.rules.filter(r => r.severity === 'medium');
-    const low = response.rules.filter(r => r.severity === 'low');
+    const critical = response.rules.filter((r: PlaybookRule) => r.severity === 'critical');
+    const high = response.rules.filter((r: PlaybookRule) => r.severity === 'high');
+    const medium = response.rules.filter((r: PlaybookRule) => r.severity === 'medium');
+    const low = response.rules.filter((r: PlaybookRule) => r.severity === 'low');
 
-    // Critical issues first
     if (critical.length > 0) {
       lines.push('## 🚨 Critical Issues');
       lines.push('');
-      critical.forEach(rule => lines.push(...this.formatRule(rule)));
+      critical.forEach((rule: PlaybookRule) => lines.push(...this.formatRule(rule)));
       lines.push('');
     }
 
-    // High priority
     if (high.length > 0) {
       lines.push('## ⚠️ High Priority');
       lines.push('');
-      high.forEach(rule => lines.push(...this.formatRule(rule)));
+      high.forEach((rule: PlaybookRule) => lines.push(...this.formatRule(rule)));
       lines.push('');
     }
 
-    // Medium priority
     if (medium.length > 0) {
       lines.push('## 📋 Best Practices');
       lines.push('');
-      medium.forEach(rule => lines.push(...this.formatRule(rule)));
+      medium.forEach((rule: PlaybookRule) => lines.push(...this.formatRule(rule)));
       lines.push('');
     }
 
-    // Low priority
     if (low.length > 0) {
       lines.push('## 💡 Recommendations');
       lines.push('');
-      low.forEach(rule => lines.push(...this.formatRule(rule)));
+      low.forEach((rule: PlaybookRule) => lines.push(...this.formatRule(rule)));
       lines.push('');
     }
 
-    // Footer
     lines.push('---');
     lines.push('');
     lines.push('**Note**: This playbook is automatically updated when dependencies change.');
@@ -85,22 +75,14 @@ export class PlaybookGenerator {
     return lines.join('\n');
   }
 
-  /**
-   * Formats a single rule as Markdown
-   */
-  private formatRule(rule: BestPractice): string[] {
+  private formatRule(rule: PlaybookRule): string[] {
     const lines: string[] = [];
-
-    // Title with type badge
     const badge = this.getTypeBadge(rule.type);
     lines.push(`### ${badge} ${rule.title}`);
     lines.push('');
-
-    // Description
     lines.push(rule.description);
     lines.push('');
 
-    // Code example (if present)
     if (rule.code_example) {
       lines.push('```javascript');
       lines.push(rule.code_example);
@@ -108,7 +90,6 @@ export class PlaybookGenerator {
       lines.push('');
     }
 
-    // Source link (if present)
     if (rule.source_url) {
       lines.push(`📚 [Learn more](${rule.source_url})`);
       lines.push('');
@@ -116,13 +97,9 @@ export class PlaybookGenerator {
 
     lines.push('---');
     lines.push('');
-
     return lines;
   }
 
-  /**
-   * Gets an emoji badge for the rule type
-   */
   private getTypeBadge(type: string): string {
     switch (type) {
       case 'security':

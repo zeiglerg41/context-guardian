@@ -10,5 +10,12 @@
     "@types/react": "^18.2.0",
     "typescript": "^5.0.0",
     "eslint": "^8.40.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-native": ">=0.70.0"
+  },
+  "optionalDependencies": {
+    "fsevents": "^2.3.3"
   }
 }

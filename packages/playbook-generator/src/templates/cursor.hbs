@@ -1,0 +1,61 @@
+# Context Guardian Rules for {{projectName}}
+
+{{#if offline}}
+⚠️ Generated in offline mode - may not include latest updates
+{{/if}}
+
+## Project Context
+- Dependencies: {{libraryCount}} libraries
+- Rules: {{ruleCount}} best practices
+- Critical: {{criticalCount}} | Security: {{securityCount}}
+
+{{#if patterns.frameworks}}
+Frameworks: {{join patterns.frameworks ", "}}
+{{/if}}
+{{#if patterns.stateManagement}}
+State Management: {{join patterns.stateManagement ", "}}
+{{/if}}
+
+---
+
+{{#each criticalRules}}
+## 🚨 CRITICAL: {{title}}
+
+Library: {{library_name}} {{#if version_range}}({{version_range}}){{/if}}
+
+{{description}}
+
+{{#if code_example}}
+Example:
+```
+{{{code_example}}}
+```
+{{/if}}
+
+{{/each}}
+
+{{#each highRules}}
+## ⚠️ {{title}}
+
+Library: {{library_name}}
+
+{{description}}
+
+{{#if code_example}}
+```
+{{{code_example}}}
+```
+{{/if}}
+
+{{/each}}
+
+{{#each mediumRules}}
+## 💡 {{title}}
+
+{{description}}
+
+{{/each}}
+
+---
+
+Generated: {{generatedAt}}
