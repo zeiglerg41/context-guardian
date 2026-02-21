@@ -1,0 +1,341 @@
+# yaml-language-server: $schema=./schema.json
+# Context Guardian — npm ecosystem rules
+# Source of truth for all npm library best practices, anti-patterns, and security advisories.
+
+ecosystem: npm
+
+libraries:
+  # ============================================================================
+  # REACT
+  # ============================================================================
+  - name: react
+    description: A JavaScript library for building user interfaces
+    docs_url: https://react.dev
+    repo_url: https://github.com/facebook/react
+    best_practices:
+      - title: Use automatic batching in React 18+
+        description: >-
+          React 18 automatically batches state updates in event handlers, timeouts, and
+          promises. You no longer need to wrap updates in unstable_batchedUpdates.
+        category: performance
+        severity: medium
+        version_range: ">=18.0.0"
+        code_example: |
+          // React 18+ - automatic batching
+          function handleClick() {
+            setCount(c => c + 1);
+            setFlag(f => !f);
+            // Both updates batched automatically
+          }
+        source_url: https://react.dev/blog/2022/03/29/react-v18#new-feature-automatic-batching
+
+      - title: Avoid useId() in React versions below 18.3
+        description: >-
+          The useId() hook was added in React 18.3. If you're on an earlier version,
+          use a custom ID generation solution or upgrade.
+        category: best-practice
+        severity: low
+        version_range: ">=18.0.0 <18.3.0"
+        code_example: |
+          // Don't use in React <18.3
+          // const id = useId(); // ❌
+
+          // Use custom solution instead
+          const id = useMemo(() => Math.random().toString(36), []);
+        source_url: https://react.dev/reference/react/useId
+
+      - title: Prefer useTransition for non-urgent updates
+        description: >-
+          Use startTransition to mark state updates as non-urgent, allowing React to
+          keep the UI responsive during heavy renders.
+        category: performance
+        severity: medium
+        version_range: ">=18.0.0"
+        code_example: |
+          const [isPending, startTransition] = useTransition();
+
+          function handleChange(value) {
+            startTransition(() => {
+              setSearchQuery(value); // Non-urgent update
+            });
+          }
+        source_url: https://react.dev/reference/react/useTransition
+
+      - title: Avoid string refs (deprecated)
+        description: String refs are deprecated and will be removed. Use callback refs or useRef instead.
+        category: deprecation
+        severity: high
+        version_range: "<18.0.0"
+        code_example: |
+          // ❌ Don't use string refs
+          <div ref="myDiv" />
+
+          // ✅ Use callback ref or useRef
+          const myRef = useRef();
+          <div ref={myRef} />
+        source_url: https://react.dev/reference/react/Component#refs
+
+      - title: Always use keys in lists
+        description: >-
+          When rendering lists, always provide a unique key prop to help React identify
+          which items have changed, added, or removed.
+        category: best-practice
+        severity: high
+        version_range: ">=16.0.0"
+        code_example: |
+          // ✅ Good
+          items.map(item => <Item key={item.id} {...item} />)
+
+          // ❌ Bad
+          items.map(item => <Item {...item} />)
+        source_url: https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key
+
+    anti_patterns:
+      - pattern_name: Prop Drilling
+        description: >-
+          Passing props through multiple levels of components that don't use them,
+          just to reach a deeply nested child.
+        why_bad: >-
+          Makes components tightly coupled, harder to refactor, and pollutes
+          intermediate components with irrelevant props.
+        better_approach: Use Context API for global state, or component composition to avoid deep nesting.
+        severity: medium
+        version_range: ">=16.3.0"
+        code_example_bad: |
+          // ❌ Prop drilling
+          function App() {
+            const user = {name: "Alice"};
+            return <Parent user={user} />;
+          }
+          function Parent({user}) {
+            return <Child user={user} />;
+          }
+          function Child({user}) {
+            return <GrandChild user={user} />;
+          }
+        code_example_good: |
+          // ✅ Use Context
+          const UserContext = createContext();
+
+          function App() {
+            const user = {name: "Alice"};
+            return (
+              <UserContext.Provider value={user}>
+                <Parent />
+              </UserContext.Provider>
+            );
+          }
+          function GrandChild() {
+            const user = useContext(UserContext);
+            return <div>{user.name}</div>;
+          }
+        source_url: https://react.dev/learn/passing-data-deeply-with-context
+
+      - pattern_name: Mutating State Directly
+        description: Modifying state objects or arrays directly instead of creating new references.
+        why_bad: React relies on immutability to detect changes. Direct mutations won't trigger re-renders.
+        better_approach: Always create new objects/arrays when updating state.
+        severity: high
+        version_range: ">=16.0.0"
+        code_example_bad: |
+          // ❌ Mutating state
+          const [items, setItems] = useState([1, 2, 3]);
+          items.push(4); // Direct mutation
+          setItems(items); // Won't re-render!
+        code_example_good: |
+          // ✅ Create new array
+          const [items, setItems] = useState([1, 2, 3]);
+          setItems([...items, 4]); // New reference
+        source_url: https://react.dev/learn/updating-objects-in-state
+
+    security_advisories:
+      - cve_id: CVE-2018-6341
+        title: XSS via attribute name in SSR
+        description: >-
+          React before 16.4.2 allows attackers to inject arbitrary attributes via a
+          crafted attribute name on a server-rendered page. When using server-side
+          rendering, an attacker can supply a malicious attribute name that bypasses
+          the attribute whitelist.
+        severity: high
+        affected_versions: ">=16.0.0 <16.4.2"
+        fixed_in_version: "16.4.2"
+        source_url: https://nvd.nist.gov/vuln/detail/CVE-2018-6341
+        published_at: "2018-08-03"
+
+  # ============================================================================
+  # NEXT.JS
+  # ============================================================================
+  - name: next
+    description: The React Framework for Production
+    docs_url: https://nextjs.org/docs
+    repo_url: https://github.com/vercel/next.js
+    best_practices:
+      - title: Use Server Components by default in App Router
+        description: >-
+          In Next.js 13+ App Router, components are Server Components by default. Only
+          add "use client" when you need interactivity, browser APIs, or hooks.
+        category: performance
+        severity: high
+        version_range: ">=13.0.0"
+        code_example: |
+          // ✅ Server Component (default)
+          export default function Page() {
+            const data = await fetchData(); // Can fetch directly
+            return <div>{data}</div>;
+          }
+
+          // Only use "use client" when needed
+          "use client";
+          export function InteractiveButton() {
+            const [count, setCount] = useState(0);
+            return <button onClick={() => setCount(count + 1)}>{count}</button>;
+          }
+        source_url: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+
+      - title: Avoid mixing Pages Router and App Router patterns
+        description: >-
+          Next.js 13+ supports both routers, but mixing them creates confusion.
+          Choose one routing paradigm per project.
+        category: maintainability
+        severity: medium
+        version_range: ">=13.0.0"
+        code_example: |
+          // ❌ Don't mix
+          // /pages/index.js (Pages Router)
+          // /app/about/page.js (App Router)
+
+          // ✅ Pick one
+          // Either use /app for everything (recommended)
+          // Or stay on /pages until ready to migrate
+        source_url: https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration
+
+      - title: Use getStaticProps for static generation
+        description: >-
+          For pages that can be pre-rendered at build time, use getStaticProps instead
+          of getServerSideProps to improve performance.
+        category: performance
+        severity: high
+        version_range: ">=9.3.0 <13.0.0"
+        code_example: |
+          export async function getStaticProps() {
+            const data = await fetchData();
+            return { props: { data }, revalidate: 60 };
+          }
+        source_url: https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-props
+
+    anti_patterns:
+      - pattern_name: Client-side data fetching in Server Components
+        description: Using useEffect to fetch data in a Server Component (App Router).
+        why_bad: >-
+          Server Components can fetch data directly during render. Using useEffect
+          forces client-side fetching, losing SSR benefits.
+        better_approach: Fetch data directly in the Server Component using async/await.
+        severity: high
+        version_range: ">=13.0.0"
+        code_example_bad: |
+          // ❌ Don't use useEffect in Server Components
+          "use client";
+          export default function Page() {
+            const [data, setData] = useState(null);
+            useEffect(() => {
+              fetch("/api/data").then(r => r.json()).then(setData);
+            }, []);
+            return <div>{data}</div>;
+          }
+        code_example_good: |
+          // ✅ Fetch directly (Server Component)
+          export default async function Page() {
+            const data = await fetch("/api/data").then(r => r.json());
+            return <div>{data}</div>;
+          }
+        source_url: https://nextjs.org/docs/app/building-your-application/data-fetching/fetching
+
+      - pattern_name: Not optimizing images with next/image
+        description: Using standard <img> tags instead of Next.js Image component.
+        why_bad: >-
+          Misses automatic optimization, lazy loading, and responsive sizing. Hurts
+          performance and Core Web Vitals.
+        better_approach: Use next/image for all images.
+        severity: medium
+        version_range: ">=10.0.0"
+        code_example_bad: |
+          // ❌ Standard img tag
+          <img src="/photo.jpg" alt="Photo" />
+        code_example_good: |
+          // ✅ Use next/image
+          import Image from "next/image";
+          <Image src="/photo.jpg" alt="Photo" width={500} height={300} />
+        source_url: https://nextjs.org/docs/app/building-your-application/optimizing/images
+
+  # ============================================================================
+  # EXPRESS
+  # ============================================================================
+  - name: express
+    description: Fast, unopinionated, minimalist web framework for Node.js
+    docs_url: https://expressjs.com
+    repo_url: https://github.com/expressjs/express
+    best_practices:
+      - title: Always use helmet for security headers
+        description: >-
+          Helmet helps secure Express apps by setting various HTTP headers to prevent
+          common vulnerabilities.
+        category: security
+        severity: critical
+        version_range: ">=4.0.0"
+        code_example: |
+          const helmet = require("helmet");
+          app.use(helmet());
+        source_url: https://expressjs.com/en/advanced/best-practice-security.html
+
+      - title: Use express.json() instead of body-parser
+        description: >-
+          Express 4.16+ includes built-in body parsing. No need for the separate
+          body-parser package.
+        category: best-practice
+        severity: low
+        version_range: ">=4.16.0"
+        code_example: |
+          // ✅ Built-in (Express 4.16+)
+          app.use(express.json());
+          app.use(express.urlencoded({ extended: true }));
+
+          // ❌ Unnecessary
+          const bodyParser = require("body-parser");
+        source_url: https://expressjs.com/en/4x/api.html#express.json
+
+      - title: Always handle async errors in route handlers
+        description: >-
+          Express doesn't catch errors in async route handlers by default. Wrap in
+          try-catch or use express-async-errors.
+        category: best-practice
+        severity: high
+        version_range: ">=4.0.0"
+        code_example: |
+          // ✅ Proper error handling
+          app.get("/data", async (req, res, next) => {
+            try {
+              const data = await fetchData();
+              res.json(data);
+            } catch (err) {
+              next(err); // Pass to error handler
+            }
+          });
+        source_url: https://expressjs.com/en/guide/error-handling.html
+
+    anti_patterns:
+      - pattern_name: Not using environment variables for config
+        description: Hardcoding configuration values like ports, API keys, or database URLs directly in code.
+        why_bad: Exposes secrets in version control, makes it impossible to change config without code changes.
+        better_approach: Use environment variables with dotenv or process.env.
+        severity: high
+        version_range: ">=4.0.0"
+        code_example_bad: |
+          // ❌ Hardcoded
+          const PORT = 3000;
+          const DB_URL = "mongodb://localhost:27017/mydb";
+        code_example_good: |
+          // ✅ Environment variables
+          require("dotenv").config();
+          const PORT = process.env.PORT || 3000;
+          const DB_URL = process.env.DATABASE_URL;
+        source_url: https://expressjs.com/en/advanced/best-practice-performance.html

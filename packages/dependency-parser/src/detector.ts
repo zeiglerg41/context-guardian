@@ -11,6 +11,7 @@ const PACKAGE_MANAGERS: PackageManagerConfig[] = [
   { manager: 'npm', configFile: 'package.json', lockFile: 'package-lock.json' },
   { manager: 'pip', configFile: 'requirements.txt' },
   { manager: 'cargo', configFile: 'Cargo.toml', lockFile: 'Cargo.lock' },
+  { manager: 'go', configFile: 'go.mod', lockFile: 'go.sum' },
 ];
 
 /**
@@ -78,6 +79,17 @@ export function detectPackageManager(projectPath: string): DetectionResult {
       detected: 'cargo',
       configPath: cargoPath,
       lockFilePath: fs.existsSync(cargoLockPath) ? cargoLockPath : undefined,
+    };
+  }
+
+  // Check for Go
+  const goModPath = path.join(normalizedPath, 'go.mod');
+  if (fs.existsSync(goModPath)) {
+    const goSumPath = path.join(normalizedPath, 'go.sum');
+    return {
+      detected: 'go',
+      configPath: goModPath,
+      lockFilePath: fs.existsSync(goSumPath) ? goSumPath : undefined,
     };
   }
 

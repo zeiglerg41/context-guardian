@@ -3,6 +3,7 @@ import { parsePackageJson } from './parsers/node';
 import { parseRequirementsTxt } from './parsers/python';
 import { parsePyprojectToml } from './parsers/pyproject';
 import { parseCargoToml } from './parsers/rust';
+import { parseGoMod } from './parsers/go';
 import { DependencyManifest, PackageManager } from './types';
 
 /**
@@ -74,6 +75,17 @@ export function analyzeDependencies(projectPath: string): DependencyManifest {
       break;
     }
 
+    case 'go': {
+      const parsed = parseGoMod(detection.configPath);
+      manifest = {
+        packageManager: 'go',
+        dependencies: parsed.dependencies,
+        projectName: parsed.projectName,
+        projectVersion: parsed.goVersion,
+      };
+      break;
+    }
+
     default:
       throw new Error(`Unsupported package manager: ${detection.detected}`);
   }
@@ -88,3 +100,4 @@ export { parsePackageJson, cleanVersion } from './parsers/node';
 export { parseRequirementsTxt } from './parsers/python';
 export { parsePyprojectToml } from './parsers/pyproject';
 export { parseCargoToml } from './parsers/rust';
+export { parseGoMod } from './parsers/go';

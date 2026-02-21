@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contextguardian.dev/schemas/ecosystem.json",
+  "title": "Context Guardian Ecosystem Rules",
+  "description": "Schema for ecosystem-specific library rules used by Context Guardian",
+  "type": "object",
+  "required": ["ecosystem", "libraries"],
+  "additionalProperties": false,
+  "properties": {
+    "ecosystem": {
+      "type": "string",
+      "enum": ["npm", "go", "pip", "cargo", "maven", "nuget"],
+      "description": "Package ecosystem identifier"
+    },
+    "libraries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/library" }
+    }
+  },
+  "$defs": {
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "library": {
+      "type": "object",
+      "required": ["name", "description", "docs_url", "repo_url"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Package name as it appears in the manifest (go.mod, package.json, etc.)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description of the library"
+        },
+        "docs_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Official documentation URL"
+        },
+        "repo_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Source repository URL"
+        },
+        "best_practices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/best_practice" }
+        },
+        "anti_patterns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anti_pattern" }
+        },
+        "security_advisories": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/security_advisory" }
+        }
+      }
+    },
+    "best_practice": {
+      "type": "object",
+      "required": ["title", "description", "category", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": {
+          "type": "string",
+          "enum": ["best-practice", "performance", "security", "deprecation", "maintainability"]
+        },
+        "severity": { "$ref": "#/$defs/severity" },
+        "version_range": {
+          "type": "string",
+          "description": "Semver range (e.g. '>=18.0.0', '>=4.0.0 <5.0.0')"
+        },
+        "code_example": { "type": "string" },
+        "source_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "anti_pattern": {
+      "type": "object",
+      "required": ["pattern_name", "description", "why_bad", "better_approach", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "pattern_name": { "type": "string" },
+        "description": { "type": "string" },
+        "why_bad": { "type": "string" },
+        "better_approach": { "type": "string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "version_range": { "type": "string" },
+        "code_example_bad": { "type": "string" },
+        "code_example_good": { "type": "string" },
+        "source_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "security_advisory": {
+      "type": "object",
+      "required": ["cve_id", "title", "description", "severity", "affected_versions", "source_url"],
+      "additionalProperties": false,
+      "properties": {
+        "cve_id": { "type": "string", "pattern": "^CVE-\\d{4}-\\d+$" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "affected_versions": { "type": "string" },
+        "fixed_in_version": { "type": "string" },
+        "source_url": { "type": "string", "format": "uri" },
+        "published_at": { "type": "string", "format": "date" }
+      }
+    }
+  }
+}

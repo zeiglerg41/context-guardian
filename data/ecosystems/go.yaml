@@ -1,0 +1,1564 @@
+# yaml-language-server: $schema=./schema.json
+# Context Guardian — Go ecosystem rules
+# Source of truth for all Go library best practices, anti-patterns, and security advisories.
+
+ecosystem: go
+
+libraries:
+  # ============================================================================
+  # GIN
+  # ============================================================================
+  - name: github.com/gin-gonic/gin
+    description: High-performance HTTP web framework for Go
+    docs_url: https://gin-gonic.com
+    repo_url: https://github.com/gin-gonic/gin
+    best_practices:
+      - title: Use ShouldBind instead of Bind for request binding
+        description: >-
+          ShouldBind returns an error that you can handle, while Bind automatically
+          returns a 400 response on error, removing control from your handler.
+          ShouldBind lets you customize error responses and logging.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.4.0"
+        code_example: |
+          // ❌ Bind writes 400 automatically on failure
+          if err := c.Bind(&req); err != nil {
+            return // 400 already sent, can't customize
+          }
+
+          // ✅ ShouldBind lets you handle errors
+          if err := c.ShouldBindJSON(&req); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+          }
+        source_url: https://gin-gonic.com/docs/examples/binding-and-validation/
+
+      - title: Set TrustedPlatform or TrustedProxies for client IP detection
+        description: >-
+          By default, Gin trusts all proxies which can lead to IP spoofing.
+          Configure TrustedProxies or TrustedPlatform to ensure accurate client IP
+          resolution behind reverse proxies.
+        category: security
+        severity: high
+        version_range: ">=1.7.0"
+        code_example: |
+          // ✅ Set trusted proxies explicitly
+          router := gin.Default()
+          router.SetTrustedProxies([]string{"10.0.0.0/8"})
+
+          // Or use TrustedPlatform for cloud providers
+          router.TrustedPlatform = gin.PlatformCloudflare
+        source_url: https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies
+
+      - title: Apply middleware selectively per route group
+        description: >-
+          Instead of applying all middleware globally, use route groups to apply
+          middleware only where needed. This improves performance and avoids
+          unnecessary processing on routes like health checks.
+        category: performance
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          router := gin.New()
+          router.Use(gin.Logger()) // global
+
+          // Auth middleware only on protected routes
+          api := router.Group("/api")
+          api.Use(authMiddleware())
+          {
+            api.GET("/users", listUsers)
+          }
+
+          // No auth needed
+          router.GET("/health", healthCheck)
+        source_url: https://gin-gonic.com/docs/examples/grouping-routes/
+
+    anti_patterns:
+      - pattern_name: Using gin.Default() in production
+        description: gin.Default() includes the Logger and Recovery middleware which may not be suitable for production.
+        why_bad: >-
+          The built-in Logger writes to stdout with its own format, bypassing your
+          structured logging. Recovery catches panics but may expose stack traces.
+          Both add overhead you likely replace anyway.
+        better_approach: Use gin.New() and add your own middleware explicitly.
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Includes default Logger and Recovery
+          router := gin.Default()
+        code_example_good: |
+          // ✅ Start clean and add what you need
+          gin.SetMode(gin.ReleaseMode)
+          router := gin.New()
+          router.Use(gin.Recovery()) // keep recovery
+          router.Use(yourStructuredLogger())
+        source_url: https://gin-gonic.com/docs/examples/custom-middleware/
+
+    security_advisories:
+      - cve_id: CVE-2023-29401
+        title: Gin mishandles Content-Type header in c.Bind
+        description: >-
+          When using c.Bind() or c.BindHeader(), an attacker can supply a crafted
+          Content-Type header to cause unexpected binding behavior, potentially leading
+          to security bypasses when different content types are assumed.
+        severity: medium
+        affected_versions: ">=1.0.0 <1.9.1"
+        fixed_in_version: "1.9.1"
+        source_url: https://nvd.nist.gov/vuln/detail/CVE-2023-29401
+        published_at: "2023-06-08"
+
+  # ============================================================================
+  # GORILLA/MUX
+  # ============================================================================
+  - name: github.com/gorilla/mux
+    description: Powerful HTTP router and URL matcher for Go
+    docs_url: https://pkg.go.dev/github.com/gorilla/mux
+    repo_url: https://github.com/gorilla/mux
+    best_practices:
+      - title: Use r.Walk to verify registered routes at startup
+        description: >-
+          Call Router.Walk() at startup to log all registered routes. This helps
+          catch missing or misconfigured routes before they cause 404s in production.
+        category: best-practice
+        severity: low
+        version_range: ">=1.6.0"
+        code_example: |
+          err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+            tpl, _ := route.GetPathTemplate()
+            methods, _ := route.GetMethods()
+            log.Printf("Route: %s %v", tpl, methods)
+            return nil
+          })
+          if err != nil {
+            log.Fatal(err)
+          }
+        source_url: https://pkg.go.dev/github.com/gorilla/mux#Router.Walk
+
+      - title: Always set server timeouts with gorilla/mux
+        description: >-
+          gorilla/mux is just a router — it does not set any HTTP server timeouts.
+          You must configure ReadTimeout, WriteTimeout, and IdleTimeout on the
+          http.Server to prevent slowloris and resource exhaustion attacks.
+        category: security
+        severity: high
+        version_range: ">=1.0.0"
+        code_example: |
+          // ❌ No timeouts — vulnerable to slowloris
+          http.ListenAndServe(":8080", router)
+
+          // ✅ Set explicit timeouts
+          srv := &http.Server{
+            Handler:      router,
+            Addr:         ":8080",
+            ReadTimeout:  15 * time.Second,
+            WriteTimeout: 15 * time.Second,
+            IdleTimeout:  60 * time.Second,
+          }
+        source_url: https://pkg.go.dev/net/http#Server
+
+  # ============================================================================
+  # GORILLA/WEBSOCKET
+  # ============================================================================
+  - name: github.com/gorilla/websocket
+    description: WebSocket implementation for Go
+    docs_url: https://pkg.go.dev/github.com/gorilla/websocket
+    repo_url: https://github.com/gorilla/websocket
+    best_practices:
+      - title: Synchronize concurrent writes with a mutex or channel
+        description: >-
+          The WebSocket connection does not support concurrent writers. All calls to
+          WriteMessage, WriteJSON, or NextWriter must be serialized, or you will get
+          corrupted frames.
+        category: best-practice
+        severity: high
+        version_range: ">=1.0.0"
+        code_example: |
+          type SafeConn struct {
+            conn *websocket.Conn
+            mu   sync.Mutex
+          }
+
+          func (c *SafeConn) WriteJSON(v interface{}) error {
+            c.mu.Lock()
+            defer c.mu.Unlock()
+            return c.conn.WriteJSON(v)
+          }
+        source_url: https://pkg.go.dev/github.com/gorilla/websocket#hdr-Concurrency
+
+      - title: Implement ping/pong with read deadlines
+        description: >-
+          Set a read deadline and handle Pong messages to detect dead connections.
+          Without this, a dropped client can hold a connection open indefinitely,
+          leaking server resources.
+        category: best-practice
+        severity: high
+        version_range: ">=1.0.0"
+        code_example: |
+          conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+          conn.SetPongHandler(func(string) error {
+            conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+            return nil
+          })
+
+          // In a separate goroutine, send pings
+          ticker := time.NewTicker(54 * time.Second)
+          for range ticker.C {
+            if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+              return
+            }
+          }
+        source_url: https://pkg.go.dev/github.com/gorilla/websocket#hdr-Control_Messages
+
+    anti_patterns:
+      - pattern_name: Setting CheckOrigin to always return true
+        description: The Upgrader.CheckOrigin function validates the Origin header during the WebSocket handshake.
+        why_bad: >-
+          Disabling origin checks allows any website to open WebSocket connections to
+          your server, enabling cross-site WebSocket hijacking (CSWSH) attacks.
+        better_approach: Validate the Origin header against an allowlist of trusted domains.
+        severity: high
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Disables CORS protection
+          upgrader := websocket.Upgrader{
+            CheckOrigin: func(r *http.Request) bool {
+              return true
+            },
+          }
+        code_example_good: |
+          // ✅ Validate origin
+          upgrader := websocket.Upgrader{
+            CheckOrigin: func(r *http.Request) bool {
+              origin := r.Header.Get("Origin")
+              return origin == "https://myapp.example.com"
+            },
+          }
+        source_url: https://pkg.go.dev/github.com/gorilla/websocket#Upgrader
+
+  # ============================================================================
+  # PGX/V5
+  # ============================================================================
+  - name: github.com/jackc/pgx/v5
+    description: PostgreSQL driver and toolkit for Go
+    docs_url: https://pkg.go.dev/github.com/jackc/pgx/v5
+    repo_url: https://github.com/jackc/pgx
+    best_practices:
+      - title: Use pgxpool for connection pooling instead of pgx.Connect
+        description: >-
+          pgx.Connect creates a single connection with no pooling. In web applications,
+          use pgxpool.New to get a connection pool that handles concurrency,
+          reconnection, and idle connection management.
+        category: performance
+        severity: high
+        version_range: ">=5.0.0"
+        code_example: |
+          // ❌ Single connection, no pooling
+          conn, err := pgx.Connect(ctx, connStr)
+
+          // ✅ Connection pool for concurrent use
+          pool, err := pgxpool.New(ctx, connStr)
+          if err != nil {
+            log.Fatal(err)
+          }
+          defer pool.Close()
+
+          // Use pool in handlers
+          rows, err := pool.Query(ctx, "SELECT ...")
+        source_url: https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool
+
+      - title: Use pgx.CollectRows for type-safe row scanning
+        description: >-
+          pgx v5 provides CollectRows and RowToStructByName helpers that reduce
+          boilerplate and prevent common scanning errors like wrong column order.
+        category: best-practice
+        severity: medium
+        version_range: ">=5.0.0"
+        code_example: |
+          type User struct {
+            ID   int    `db:"id"`
+            Name string `db:"name"`
+          }
+
+          // ✅ Type-safe collection
+          users, err := pgx.CollectRows(
+            pool.Query(ctx, "SELECT id, name FROM users"),
+            pgx.RowToStructByName[User],
+          )
+        source_url: https://pkg.go.dev/github.com/jackc/pgx/v5#CollectRows
+
+      - title: Call pool.Ping at startup to verify database connectivity
+        description: >-
+          pgxpool.New does not immediately connect to the database. Call pool.Ping(ctx)
+          after creation to verify connectivity and fail fast if the database is
+          unreachable.
+        category: best-practice
+        severity: medium
+        version_range: ">=5.0.0"
+        code_example: |
+          pool, err := pgxpool.New(ctx, connStr)
+          if err != nil {
+            log.Fatal(err)
+          }
+
+          // ✅ Verify connection
+          if err := pool.Ping(ctx); err != nil {
+            log.Fatalf("cannot reach database: %v", err)
+          }
+        source_url: https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool#Pool.Ping
+
+    anti_patterns:
+      - pattern_name: Using pgx with PgBouncer without QueryExecModeSimpleProtocol
+        description: >-
+          pgx v5 uses the PostgreSQL extended query protocol by default, which is
+          incompatible with PgBouncer in transaction pooling mode.
+        why_bad: >-
+          Prepared statements created by the extended protocol are tied to a specific
+          backend connection. PgBouncer's transaction pooling reassigns connections per
+          transaction, causing "prepared statement does not exist" errors.
+        better_approach: Set QueryExecMode to QueryExecModeSimpleProtocol when using PgBouncer.
+        severity: high
+        version_range: ">=5.0.0"
+        code_example_bad: |
+          // ❌ Fails with PgBouncer in transaction mode
+          pool, _ := pgxpool.New(ctx, connStr)
+        code_example_good: |
+          // ✅ Use simple protocol for PgBouncer
+          config, _ := pgxpool.ParseConfig(connStr)
+          config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+          pool, _ := pgxpool.NewWithConfig(ctx, config)
+        source_url: https://pkg.go.dev/github.com/jackc/pgx/v5#QueryExecMode
+
+  # ============================================================================
+  # PGX/V4
+  # ============================================================================
+  - name: github.com/jackc/pgx/v4
+    description: PostgreSQL driver and toolkit for Go (v4)
+    docs_url: https://pkg.go.dev/github.com/jackc/pgx/v4
+    repo_url: https://github.com/jackc/pgx
+    best_practices:
+      - title: Use pgxpool.Connect for connection pooling
+        description: >-
+          pgx.Connect creates a single connection. In web apps, use pgxpool.Connect
+          (v4 API) to get a pool that manages concurrency and reconnection. Note:
+          v5 changed this to pgxpool.New.
+        category: performance
+        severity: high
+        version_range: ">=4.0.0"
+        code_example: |
+          // ❌ Single connection
+          conn, err := pgx.Connect(ctx, connStr)
+
+          // ✅ Connection pool (v4 API)
+          pool, err := pgxpool.Connect(ctx, connStr)
+          if err != nil {
+            log.Fatal(err)
+          }
+          defer pool.Close()
+        source_url: https://pkg.go.dev/github.com/jackc/pgx/v4/pgxpool
+
+      - title: Use scany for struct scanning in pgx v4
+        description: >-
+          pgx v4 does not have built-in CollectRows like v5. Use the scany library
+          (pgxscan) for ergonomic struct scanning instead of manual row.Scan calls.
+        category: best-practice
+        severity: medium
+        version_range: ">=4.0.0"
+        code_example: |
+          import "github.com/georgysavva/scany/v2/pgxscan"
+
+          var users []User
+          err := pgxscan.Select(ctx, pool, &users,
+            "SELECT id, name, email FROM users WHERE active = $1", true,
+          )
+        source_url: https://pkg.go.dev/github.com/georgysavva/scany/v2/pgxscan
+
+      - title: Use QueryRow for single-row queries
+        description: >-
+          For queries that return exactly one row, use QueryRow instead of Query to
+          avoid the boilerplate of iterating rows and checking rows.Err().
+        category: best-practice
+        severity: low
+        version_range: ">=4.0.0"
+        code_example: |
+          // ❌ Verbose for single row
+          rows, _ := pool.Query(ctx, "SELECT name FROM users WHERE id=$1", id)
+          defer rows.Close()
+          rows.Next()
+          rows.Scan(&name)
+
+          // ✅ QueryRow
+          err := pool.QueryRow(ctx, "SELECT name FROM users WHERE id=$1", id).Scan(&name)
+        source_url: https://pkg.go.dev/github.com/jackc/pgx/v4#Conn.QueryRow
+
+    anti_patterns:
+      - pattern_name: Not closing rows after Query
+        description: Forgetting to close rows returned by pool.Query leaks connections back to the pool.
+        why_bad: >-
+          Each unclosed rows object holds a connection from the pool. Under load this
+          exhausts the pool, causing all queries to block or timeout.
+        better_approach: >-
+          Always defer rows.Close() immediately after calling Query. Or use
+          QueryRow/scany which handle closing automatically.
+        severity: high
+        version_range: ">=4.0.0"
+        code_example_bad: |
+          // ❌ Leaked connection
+          rows, err := pool.Query(ctx, "SELECT ...")
+          for rows.Next() {
+            // process
+          }
+          // rows never closed!
+        code_example_good: |
+          // ✅ Always defer Close
+          rows, err := pool.Query(ctx, "SELECT ...")
+          if err != nil {
+            return err
+          }
+          defer rows.Close()
+          for rows.Next() {
+            // process
+          }
+        source_url: https://pkg.go.dev/github.com/jackc/pgx/v4#Rows
+
+      - pattern_name: Migrate from pgx v4 to v5
+        description: pgx v4 is in maintenance mode. v5 has a cleaner API, built-in CollectRows, and better performance.
+        why_bad: >-
+          v4 will not receive new features. v5 has pgxpool.New (replaces Connect),
+          CollectRows, RowToStructByName, and improved tracing support.
+        better_approach: >-
+          Follow the v4-to-v5 migration guide. Key changes: pgxpool.Connect ->
+          pgxpool.New, row scanning helpers are built-in.
+        severity: medium
+        version_range: ">=4.0.0"
+        code_example_bad: |
+          // v4 API
+          pool, err := pgxpool.Connect(ctx, connStr)
+        code_example_good: |
+          // v5 API
+          pool, err := pgxpool.New(ctx, connStr)
+        source_url: https://github.com/jackc/pgx/wiki/Migrating-from-v4-to-v5
+
+  # ============================================================================
+  # GO-REDIS/V9
+  # ============================================================================
+  - name: github.com/redis/go-redis/v9
+    description: Redis client for Go
+    docs_url: https://redis.io/docs/latest/develop/clients/go/
+    repo_url: https://github.com/redis/go-redis
+    best_practices:
+      - title: Use the new github.com/redis/go-redis/v9 import path
+        description: >-
+          Starting with v9, go-redis moved from github.com/go-redis/redis to
+          github.com/redis/go-redis. The old import path is deprecated and will
+          not receive updates.
+        category: best-practice
+        severity: high
+        version_range: ">=9.0.0"
+        code_example: |
+          // ❌ Deprecated import path
+          import "github.com/go-redis/redis/v8"
+
+          // ✅ New canonical import
+          import "github.com/redis/go-redis/v9"
+        source_url: https://github.com/redis/go-redis/blob/master/MIGRATION.md
+
+      - title: Use pipelines for batch operations
+        description: >-
+          Pipeline batches multiple Redis commands into a single round trip,
+          dramatically reducing latency for bulk operations. Use Pipelined() for
+          fire-and-forget or Pipeline() when you need to inspect individual results.
+        category: performance
+        severity: medium
+        version_range: ">=9.0.0"
+        code_example: |
+          // ❌ N round trips
+          for _, key := range keys {
+            rdb.Get(ctx, key)
+          }
+
+          // ✅ Single round trip
+          cmds, err := rdb.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+            for _, key := range keys {
+              pipe.Get(ctx, key)
+            }
+            return nil
+          })
+        source_url: https://redis.io/docs/latest/develop/clients/go/#pipelines
+
+    anti_patterns:
+      - pattern_name: Using context.Background() for all Redis operations
+        description: Passing context.Background() to every Redis call ignores cancellation and timeout signals.
+        why_bad: >-
+          If the upstream HTTP request is cancelled or times out, the Redis operation
+          will continue running, wasting connections and resources. This can cause
+          connection pool exhaustion under load.
+        better_approach: Propagate the request context from your HTTP handler to Redis calls.
+        severity: medium
+        version_range: ">=9.0.0"
+        code_example_bad: |
+          // ❌ Ignores request cancellation
+          func handler(w http.ResponseWriter, r *http.Request) {
+            val, _ := rdb.Get(context.Background(), "key").Result()
+          }
+        code_example_good: |
+          // ✅ Propagate request context
+          func handler(w http.ResponseWriter, r *http.Request) {
+            val, _ := rdb.Get(r.Context(), "key").Result()
+          }
+        source_url: https://pkg.go.dev/context
+
+  # ============================================================================
+  # GO-REDIS LEGACY (v8) — migrate-only
+  # ============================================================================
+  - name: github.com/go-redis/redis/v8
+    description: Redis client for Go (legacy import path, v8)
+    docs_url: https://redis.io/docs/latest/develop/clients/go/
+    repo_url: https://github.com/redis/go-redis
+    anti_patterns:
+      - pattern_name: Migrate from go-redis/redis to redis/go-redis v9
+        description: The github.com/go-redis/redis import path is deprecated. The project has moved to github.com/redis/go-redis.
+        why_bad: >-
+          The old import path will not receive security patches or new features. v9
+          adds context-first APIs, better connection pooling, and improved Redis 7+
+          support.
+        better_approach: Update your go.mod to use github.com/redis/go-redis/v9 and update all imports.
+        severity: high
+        version_range: ">=6.0.0"
+        code_example_bad: |
+          // ❌ Deprecated import
+          import "github.com/go-redis/redis/v8"
+
+          client := redis.NewClient(&redis.Options{
+            Addr: "localhost:6379",
+          })
+        code_example_good: |
+          // ✅ New import path
+          import "github.com/redis/go-redis/v9"
+
+          client := redis.NewClient(&redis.Options{
+            Addr: "localhost:6379",
+          })
+        source_url: https://github.com/redis/go-redis/blob/master/MIGRATION.md
+
+  # ============================================================================
+  # GO-REDIS LEGACY (v7) — migrate-only
+  # ============================================================================
+  - name: github.com/go-redis/redis/v7
+    description: Redis client for Go (legacy import path, v7)
+    docs_url: https://redis.io/docs/latest/develop/clients/go/
+    repo_url: https://github.com/redis/go-redis
+    anti_patterns:
+      - pattern_name: Migrate from go-redis/redis to redis/go-redis v9
+        description: The github.com/go-redis/redis import path is deprecated. The project has moved to github.com/redis/go-redis.
+        why_bad: >-
+          The old import path will not receive security patches or new features. v9
+          adds context-first APIs, better connection pooling, and improved Redis 7+
+          support.
+        better_approach: Update your go.mod to use github.com/redis/go-redis/v9 and update all imports.
+        severity: high
+        version_range: ">=6.0.0"
+        code_example_bad: |
+          // ❌ Deprecated import
+          import "github.com/go-redis/redis/v7"
+
+          client := redis.NewClient(&redis.Options{
+            Addr: "localhost:6379",
+          })
+        code_example_good: |
+          // ✅ New import path
+          import "github.com/redis/go-redis/v9"
+
+          client := redis.NewClient(&redis.Options{
+            Addr: "localhost:6379",
+          })
+        source_url: https://github.com/redis/go-redis/blob/master/MIGRATION.md
+
+  # ============================================================================
+  # ZEROLOG
+  # ============================================================================
+  - name: github.com/rs/zerolog
+    description: Zero-allocation structured JSON logger for Go
+    docs_url: https://github.com/rs/zerolog
+    repo_url: https://github.com/rs/zerolog
+    best_practices:
+      - title: Use sub-loggers with context fields instead of repeating fields
+        description: >-
+          Create sub-loggers with With() to attach contextual fields like request ID,
+          user ID, or service name. This avoids repeating the same fields on every log
+          call and ensures consistency.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          // ❌ Repeating fields
+          log.Info().Str("request_id", reqID).Str("user_id", uid).Msg("started")
+          log.Info().Str("request_id", reqID).Str("user_id", uid).Msg("done")
+
+          // ✅ Sub-logger with context
+          logger := log.With().
+            Str("request_id", reqID).
+            Str("user_id", uid).
+            Logger()
+          logger.Info().Msg("started")
+          logger.Info().Msg("done")
+        source_url: https://github.com/rs/zerolog#sub-loggers-let-you-chain-loggers-with-additional-context
+
+      - title: Always call .Msg() or .Send() to emit log events
+        description: >-
+          Zerolog uses a builder pattern. If you forget to call .Msg("") or .Send() at
+          the end of the chain, the log event is silently discarded and resources are
+          leaked from the internal pool.
+        category: best-practice
+        severity: high
+        version_range: ">=1.0.0"
+        code_example: |
+          // ❌ Event never emitted — silently lost
+          log.Info().Str("key", "value")
+
+          // ✅ Must call Msg or Send
+          log.Info().Str("key", "value").Msg("operation completed")
+          log.Info().Str("key", "value").Send() // empty message
+        source_url: https://github.com/rs/zerolog#leveled-logging
+
+      - title: Use zerolog.Ctx for context-aware logging
+        description: >-
+          Store a logger in context.Context with logger.WithContext(ctx) and retrieve
+          it with zerolog.Ctx(ctx). This integrates structured logging with Go's
+          context propagation pattern.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.20.0"
+        code_example: |
+          // Store logger in context
+          ctx := logger.WithContext(r.Context())
+
+          // Retrieve in downstream functions
+          func processItem(ctx context.Context, item Item) {
+            log := zerolog.Ctx(ctx)
+            log.Info().Str("item_id", item.ID).Msg("processing")
+          }
+        source_url: https://github.com/rs/zerolog#integration-with-context
+
+    anti_patterns:
+      - pattern_name: Using ConsoleWriter in production
+        description: zerolog.ConsoleWriter produces human-readable colorized output.
+        why_bad: >-
+          ConsoleWriter is 10-20x slower than the default JSON output because it must
+          parse and reformat every event. It also produces output that is not
+          machine-parseable, breaking log aggregation pipelines.
+        better_approach: Use ConsoleWriter only in development. Default JSON output is optimized for production.
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Slow and not machine-parseable in prod
+          log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+        code_example_good: |
+          // ✅ JSON output in production, console in dev
+          if os.Getenv("ENV") == "development" {
+            log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+          }
+          // Default: JSON to stderr (production)
+        source_url: https://github.com/rs/zerolog#pretty-logging
+
+  # ============================================================================
+  # ZAP
+  # ============================================================================
+  - name: go.uber.org/zap
+    description: Blazing-fast structured logger for Go
+    docs_url: https://pkg.go.dev/go.uber.org/zap
+    repo_url: https://github.com/uber-go/zap
+    best_practices:
+      - title: Use zap.Logger for hot paths, SugaredLogger for convenience
+        description: >-
+          zap.Logger (structured) avoids allocations by requiring typed fields.
+          SugaredLogger allows printf-style formatting but allocates. Use Logger in
+          performance-critical code and Sugar where developer convenience matters more.
+        category: performance
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          // ✅ Hot path — zero-alloc structured logging
+          logger.Info("request handled",
+            zap.String("method", r.Method),
+            zap.Int("status", 200),
+            zap.Duration("latency", elapsed),
+          )
+
+          // ✅ Non-hot path — convenient sugar
+          sugar.Infof("user %s logged in from %s", username, ip)
+        source_url: https://pkg.go.dev/go.uber.org/zap#hdr-Choosing_a_Logger
+
+      - title: Defer logger.Sync() in main to flush buffered logs
+        description: >-
+          Zap buffers log entries for performance. Call logger.Sync() before your
+          application exits to ensure all buffered entries are flushed to their
+          destination.
+        category: best-practice
+        severity: high
+        version_range: ">=1.0.0"
+        code_example: |
+          func main() {
+            logger, _ := zap.NewProduction()
+            defer logger.Sync() // flush before exit
+
+            logger.Info("application started")
+            // ...
+          }
+        source_url: https://pkg.go.dev/go.uber.org/zap#Logger.Sync
+
+      - title: Use AtomicLevel to change log level at runtime
+        description: >-
+          zap.AtomicLevel allows you to change the log level without restarting your
+          application. You can expose it as an HTTP handler for operational control.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          atom := zap.NewAtomicLevel()
+          logger := zap.New(zapcore.NewCore(
+            zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+            os.Stdout,
+            atom,
+          ))
+
+          // Expose HTTP endpoint to change level
+          http.Handle("/log-level", atom) // PUT {"level":"debug"}
+        source_url: https://pkg.go.dev/go.uber.org/zap#AtomicLevel
+
+    anti_patterns:
+      - pattern_name: Using zap.L() without calling ReplaceGlobals
+        description: zap.L() returns the global logger, which is a no-op logger by default.
+        why_bad: >-
+          Without calling ReplaceGlobals(), zap.L() silently discards all log output.
+          This is a common source of "missing logs" bugs, especially when library code
+          uses the global logger.
+        better_approach: Call zap.ReplaceGlobals() early in main, or pass loggers explicitly via dependency injection.
+        severity: high
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Global logger is no-op by default
+          func init() {
+            zap.L().Info("this is silently dropped")
+          }
+        code_example_good: |
+          // ✅ Replace global logger in main
+          func main() {
+            logger, _ := zap.NewProduction()
+            zap.ReplaceGlobals(logger)
+            defer logger.Sync()
+
+            zap.L().Info("now this works")
+          }
+        source_url: https://pkg.go.dev/go.uber.org/zap#ReplaceGlobals
+
+  # ============================================================================
+  # PROMETHEUS
+  # ============================================================================
+  - name: github.com/prometheus/client_golang
+    description: Prometheus instrumentation library for Go
+    docs_url: https://pkg.go.dev/github.com/prometheus/client_golang
+    repo_url: https://github.com/prometheus/client_golang
+    best_practices:
+      - title: Use a custom registry instead of the default global registry
+        description: >-
+          The default prometheus.DefaultRegisterer includes Go runtime metrics (go_*)
+          and process metrics (process_*). A custom registry gives you explicit control
+          over what gets exposed.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          // ✅ Custom registry — only your metrics
+          reg := prometheus.NewRegistry()
+          reg.MustRegister(
+            httpRequests,
+            httpDuration,
+          )
+
+          // Use custom registry with handler
+          http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+        source_url: https://pkg.go.dev/github.com/prometheus/client_golang/prometheus#NewRegistry
+
+      - title: Define histogram buckets aligned with SLO targets
+        description: >-
+          Default histogram buckets (.005 to 10s) may not match your SLOs. Define
+          custom buckets that align with your response time targets so you can
+          directly query SLO compliance.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          // ✅ Buckets aligned with SLO (p50=100ms, p99=500ms)
+          httpDuration := prometheus.NewHistogramVec(
+            prometheus.HistogramOpts{
+              Name:    "http_request_duration_seconds",
+              Buckets: []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5},
+            },
+            []string{"handler", "method"},
+          )
+        source_url: https://prometheus.io/docs/practices/histograms/
+
+    anti_patterns:
+      - pattern_name: Using unbounded label values
+        description: >-
+          Prometheus labels with high or unbounded cardinality (like user IDs, request
+          IDs, or email addresses) create a new time series for each unique value.
+        why_bad: >-
+          Each unique label combination creates a separate time series stored in memory.
+          Unbounded labels can cause Prometheus to OOM, degrade query performance, and
+          increase storage costs dramatically.
+        better_approach: >-
+          Only use labels with low, bounded cardinality (HTTP method, status code,
+          endpoint template). Use logs for high-cardinality data.
+        severity: critical
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ User ID = unbounded cardinality
+          counter.WithLabelValues(userID, endpoint).Inc()
+        code_example_good: |
+          // ✅ Bounded labels only
+          counter.WithLabelValues(method, statusCode, routeTemplate).Inc()
+          // High-cardinality data goes to logs, not metrics
+        source_url: https://prometheus.io/docs/practices/naming/#labels
+
+      - pattern_name: Using promauto with MustRegister on the same metric
+        description: >-
+          promauto automatically registers metrics with the default registry. Calling
+          MustRegister on the same metric causes a panic due to duplicate registration.
+        why_bad: >-
+          promauto.NewCounter already calls prometheus.MustRegister internally. Calling
+          MustRegister again panics at startup with "duplicate metrics collector
+          registration attempted".
+        better_approach: Use either promauto (auto-registers) OR manual prometheus.NewCounter + MustRegister, never both.
+        severity: high
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Double registration — panics at startup
+          var myCounter = promauto.NewCounter(prometheus.CounterOpts{
+            Name: "my_counter",
+          })
+          func init() {
+            prometheus.MustRegister(myCounter) // panic!
+          }
+        code_example_good: |
+          // ✅ Option A: promauto (auto-registers)
+          var myCounter = promauto.NewCounter(prometheus.CounterOpts{
+            Name: "my_counter",
+          })
+
+          // ✅ Option B: manual registration
+          var myCounter = prometheus.NewCounter(prometheus.CounterOpts{
+            Name: "my_counter",
+          })
+          func init() {
+            prometheus.MustRegister(myCounter)
+          }
+        source_url: https://pkg.go.dev/github.com/prometheus/client_golang/prometheus/promauto
+
+  # ============================================================================
+  # ECHO/V4
+  # ============================================================================
+  - name: github.com/labstack/echo/v4
+    description: High performance, minimalist Go web framework
+    docs_url: https://echo.labstack.com
+    repo_url: https://github.com/labstack/echo
+    best_practices:
+      - title: Use a custom HTTPErrorHandler for consistent error responses
+        description: >-
+          Echo's default error handler returns errors in its own format. Define a
+          custom HTTPErrorHandler to return consistent, structured error responses
+          across your API.
+        category: best-practice
+        severity: medium
+        version_range: ">=4.0.0"
+        code_example: |
+          e := echo.New()
+          e.HTTPErrorHandler = func(err error, c echo.Context) {
+            code := http.StatusInternalServerError
+            msg := "Internal Server Error"
+            if he, ok := err.(*echo.HTTPError); ok {
+              code = he.Code
+              msg = fmt.Sprintf("%v", he.Message)
+            }
+            c.JSON(code, map[string]string{"error": msg})
+          }
+        source_url: https://echo.labstack.com/docs/error-handling
+
+      - title: Use echo.Bind with struct tags for request validation
+        description: >-
+          Echo supports binding query params, path params, headers, and body into a
+          single struct. Combine with the validator interface for automatic validation.
+        category: best-practice
+        severity: medium
+        version_range: ">=4.0.0"
+        code_example: |
+          type CreateUserRequest struct {
+            Name  string `json:"name" validate:"required"`
+            Email string `json:"email" validate:"required,email"`
+          }
+
+          func createUser(c echo.Context) error {
+            var req CreateUserRequest
+            if err := c.Bind(&req); err != nil {
+              return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+            }
+            if err := c.Validate(req); err != nil {
+              return err
+            }
+            // ...
+          }
+        source_url: https://echo.labstack.com/docs/binding
+
+      - title: Set server timeouts on the underlying http.Server
+        description: >-
+          Echo's e.Start() creates an http.Server without timeouts. Configure the
+          server directly to prevent slowloris attacks and resource exhaustion.
+        category: security
+        severity: high
+        version_range: ">=4.0.0"
+        code_example: |
+          // ❌ No timeouts
+          e.Start(":8080")
+
+          // ✅ Configure timeouts
+          s := &http.Server{
+            Addr:         ":8080",
+            ReadTimeout:  15 * time.Second,
+            WriteTimeout: 15 * time.Second,
+            IdleTimeout:  60 * time.Second,
+          }
+          e.Logger.Fatal(e.StartServer(s))
+        source_url: https://echo.labstack.com/docs/cookbook/http2
+
+    anti_patterns:
+      - pattern_name: Using c.String or c.HTML for API error responses
+        description: Returning plain text or HTML error messages from API endpoints.
+        why_bad: >-
+          API clients expect structured JSON error responses. Plain text errors break
+          client-side error parsing and provide inconsistent error formats across
+          endpoints.
+        better_approach: Always use c.JSON with a structured error object for API endpoints.
+        severity: medium
+        version_range: ">=4.0.0"
+        code_example_bad: |
+          // ❌ Plain text error in an API
+          return c.String(http.StatusBadRequest, "invalid input")
+        code_example_good: |
+          // ✅ Structured JSON error
+          return c.JSON(http.StatusBadRequest, map[string]string{
+            "error": "invalid input",
+            "field": "email",
+          })
+        source_url: https://echo.labstack.com/docs/response
+
+  # ============================================================================
+  # CHI/V5
+  # ============================================================================
+  - name: github.com/go-chi/chi/v5
+    description: Lightweight, idiomatic HTTP router for Go
+    docs_url: https://go-chi.io
+    repo_url: https://github.com/go-chi/chi
+    best_practices:
+      - title: Use chi.URLParam instead of parsing URL path manually
+        description: >-
+          chi provides chi.URLParam(r, "paramName") to extract URL parameters. This
+          is type-safe and consistent with chi's routing syntax.
+        category: best-practice
+        severity: medium
+        version_range: ">=5.0.0"
+        code_example: |
+          r.Get("/users/{userID}", func(w http.ResponseWriter, r *http.Request) {
+            // ✅ Use chi.URLParam
+            userID := chi.URLParam(r, "userID")
+          })
+        source_url: https://pkg.go.dev/github.com/go-chi/chi/v5#URLParam
+
+      - title: Use r.With for route-scoped middleware instead of r.Use
+        description: >-
+          r.Use applies middleware to all subsequent routes. r.With creates a new router
+          copy with additional middleware, leaving the original unaffected. Use r.With
+          for auth or rate-limiting on specific route groups.
+        category: best-practice
+        severity: medium
+        version_range: ">=5.0.0"
+        code_example: |
+          r := chi.NewRouter()
+          r.Use(middleware.Logger) // applies to ALL routes
+
+          // ✅ Auth only on /admin routes
+          r.Route("/admin", func(r chi.Router) {
+            r.Use(authMiddleware)
+            r.Get("/dashboard", adminDashboard)
+          })
+
+          // ✅ Or inline with With
+          r.With(rateLimiter).Get("/api/search", searchHandler)
+        source_url: https://go-chi.io/#/pages/middleware
+
+      - title: Set server timeouts — chi is just a router
+        description: >-
+          Like gorilla/mux, chi is only a router and does not configure http.Server
+          timeouts. You must set ReadTimeout, WriteTimeout, and IdleTimeout yourself.
+        category: security
+        severity: high
+        version_range: ">=5.0.0"
+        code_example: |
+          r := chi.NewRouter()
+          // ... routes ...
+
+          // ✅ Always set timeouts
+          srv := &http.Server{
+            Addr:         ":8080",
+            Handler:      r,
+            ReadTimeout:  15 * time.Second,
+            WriteTimeout: 15 * time.Second,
+            IdleTimeout:  60 * time.Second,
+          }
+          log.Fatal(srv.ListenAndServe())
+        source_url: https://pkg.go.dev/net/http#Server
+
+    anti_patterns:
+      - pattern_name: Registering routes after server starts
+        description: Adding routes to a chi router after ListenAndServe has been called.
+        why_bad: >-
+          chi's routing tree is not safe for concurrent modification. Adding routes
+          after the server starts can cause data races and panics.
+        better_approach: >-
+          Register all routes before starting the server. Use chi.Walk at startup to
+          verify all routes are registered.
+        severity: high
+        version_range: ">=5.0.0"
+        code_example_bad: |
+          // ❌ Race condition
+          go srv.ListenAndServe()
+          r.Get("/late-route", handler) // unsafe!
+        code_example_good: |
+          // ✅ Register all routes first
+          r.Get("/late-route", handler)
+          log.Fatal(srv.ListenAndServe())
+        source_url: https://pkg.go.dev/github.com/go-chi/chi/v5
+
+  # ============================================================================
+  # COBRA
+  # ============================================================================
+  - name: github.com/spf13/cobra
+    description: A framework for modern CLI applications in Go
+    docs_url: https://cobra.dev
+    repo_url: https://github.com/spf13/cobra
+    best_practices:
+      - title: Use RunE instead of Run for error propagation
+        description: >-
+          RunE returns an error that cobra handles (prints and sets exit code). Run
+          swallows errors, forcing you to call os.Exit manually and bypassing defer
+          statements.
+        category: best-practice
+        severity: high
+        version_range: ">=1.0.0"
+        code_example: |
+          // ❌ Run — must handle errors manually
+          Run: func(cmd *cobra.Command, args []string) {
+            if err := doWork(); err != nil {
+              fmt.Fprintln(os.Stderr, err)
+              os.Exit(1) // skips defers!
+            }
+          }
+
+          // ✅ RunE — cobra handles the error
+          RunE: func(cmd *cobra.Command, args []string) error {
+            return doWork()
+          }
+        source_url: https://pkg.go.dev/github.com/spf13/cobra#Command
+
+      - title: Use PersistentPreRunE for shared validation across subcommands
+        description: >-
+          PersistentPreRunE runs before the command and all its children. Use it for
+          shared setup like loading config, validating auth, or initializing logging.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          rootCmd := &cobra.Command{
+            Use: "myapp",
+            PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+              // Runs before ALL subcommands
+              return initConfig()
+            },
+          }
+
+          serveCmd := &cobra.Command{
+            Use:  "serve",
+            RunE: func(cmd *cobra.Command, args []string) error {
+              // initConfig() already ran
+              return startServer()
+            },
+          }
+        source_url: https://pkg.go.dev/github.com/spf13/cobra#Command
+
+      - title: Use cobra.ExactArgs or cobra.MinimumNArgs for argument validation
+        description: >-
+          Cobra provides built-in argument validators. Use them instead of manually
+          checking len(args) in your Run function.
+        category: best-practice
+        severity: low
+        version_range: ">=1.0.0"
+        code_example: |
+          // ❌ Manual validation
+          RunE: func(cmd *cobra.Command, args []string) error {
+            if len(args) != 1 {
+              return fmt.Errorf("requires exactly 1 arg")
+            }
+          }
+
+          // ✅ Built-in validator
+          cmd := &cobra.Command{
+            Use:  "get [name]",
+            Args: cobra.ExactArgs(1),
+            RunE: func(cmd *cobra.Command, args []string) error {
+              name := args[0] // guaranteed to exist
+            },
+          }
+        source_url: https://pkg.go.dev/github.com/spf13/cobra#Command
+
+    anti_patterns:
+      - pattern_name: Binding flags in init() instead of a dedicated function
+        description: Using Go's init() to bind cobra flags scatters flag definitions across files and makes them hard to find.
+        why_bad: >-
+          init() runs at import time, making flag registration implicit and
+          order-dependent. It also makes testing harder since you cannot control when
+          init() runs.
+        better_approach: Bind flags in a named function called explicitly from main or the parent command setup.
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Hidden in init()
+          func init() {
+            rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
+            rootCmd.AddCommand(serveCmd)
+          }
+        code_example_good: |
+          // ✅ Explicit setup function
+          func newRootCmd() *cobra.Command {
+            cmd := &cobra.Command{Use: "myapp"}
+            cmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
+            cmd.AddCommand(newServeCmd())
+            return cmd
+          }
+
+          func main() {
+            if err := newRootCmd().Execute(); err != nil {
+              os.Exit(1)
+            }
+          }
+        source_url: https://pkg.go.dev/github.com/spf13/cobra#Command
+
+  # ============================================================================
+  # VIPER
+  # ============================================================================
+  - name: github.com/spf13/viper
+    description: Complete configuration solution for Go applications
+    docs_url: https://pkg.go.dev/github.com/spf13/viper
+    repo_url: https://github.com/spf13/viper
+    best_practices:
+      - title: Call SetDefault before ReadInConfig for all required keys
+        description: >-
+          SetDefault documents what keys your application expects and provides fallback
+          values. Without defaults, missing config keys silently return zero values,
+          causing subtle bugs.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          // ✅ Set defaults first
+          viper.SetDefault("server.port", 8080)
+          viper.SetDefault("server.read_timeout", "15s")
+          viper.SetDefault("log.level", "info")
+
+          // Then read config file (overrides defaults)
+          if err := viper.ReadInConfig(); err != nil {
+            if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+              log.Fatal(err) // real error, not just missing file
+            }
+          }
+        source_url: https://pkg.go.dev/github.com/spf13/viper#SetDefault
+
+      - title: Use AutomaticEnv with SetEnvPrefix for 12-factor config
+        description: >-
+          AutomaticEnv makes viper check environment variables for every Get call.
+          SetEnvPrefix avoids collisions with other apps. Together they enable 12-factor
+          app configuration.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          viper.SetEnvPrefix("MYAPP")   // MYAPP_SERVER_PORT
+          viper.AutomaticEnv()
+          viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+          // Now viper.GetInt("server.port") checks:
+          // 1. Flag override
+          // 2. MYAPP_SERVER_PORT env var
+          // 3. Config file value
+          // 4. Default
+        source_url: https://pkg.go.dev/github.com/spf13/viper#AutomaticEnv
+
+      - title: Use BindPFlags to connect cobra flags to viper config
+        description: >-
+          BindPFlags makes cobra flags the highest-priority config source, so CLI flags
+          override env vars and config files. This gives users a consistent --flag
+          override for any config key.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          serveCmd := &cobra.Command{
+            Use: "serve",
+            PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+              // Bind all flags to viper
+              return viper.BindPFlags(cmd.Flags())
+            },
+          }
+          serveCmd.Flags().Int("port", 8080, "server port")
+
+          // Now viper.GetInt("port") respects:
+          // --port flag > MYAPP_PORT env > config file > default
+        source_url: https://pkg.go.dev/github.com/spf13/viper#BindPFlags
+
+    anti_patterns:
+      - pattern_name: Ignoring ReadInConfig errors
+        description: Silently ignoring all errors from viper.ReadInConfig.
+        why_bad: >-
+          ReadInConfig can fail for reasons beyond "file not found" — permission errors,
+          YAML/JSON syntax errors, or I/O issues. Ignoring these means running with
+          partial or no configuration silently.
+        better_approach: >-
+          Check the error type. ConfigFileNotFoundError is often acceptable; other
+          errors should be fatal.
+        severity: high
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ All errors silently ignored
+          viper.ReadInConfig() // no error check
+        code_example_good: |
+          // ✅ Distinguish missing file from real errors
+          if err := viper.ReadInConfig(); err != nil {
+            if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+              log.Warn("no config file found, using defaults")
+            } else {
+              log.Fatalf("config error: %v", err)
+            }
+          }
+        source_url: https://pkg.go.dev/github.com/spf13/viper#ReadInConfig
+
+      - pattern_name: Storing secrets in viper config files
+        description: Putting database passwords, API keys, or tokens in config files managed by viper.
+        why_bad: >-
+          Config files are often committed to git, logged, or included in container
+          images. Secrets in config files are easily leaked and hard to rotate.
+        better_approach: >-
+          Use environment variables for secrets (viper.AutomaticEnv reads them). For
+          production, use a secrets manager and inject via env vars.
+        severity: critical
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          # ❌ config.yaml with secrets
+          database:
+            password: "s3cret!"
+          api:
+            key: "sk-abc123"
+        code_example_good: |
+          # ✅ Config file — no secrets
+          database:
+            host: "localhost"
+            port: 5432
+
+          # Secrets via env vars
+          # MYAPP_DATABASE_PASSWORD=s3cret!
+          # MYAPP_API_KEY=sk-abc123
+        source_url: https://12factor.net/config
+
+  # ============================================================================
+  # TESTIFY
+  # ============================================================================
+  - name: github.com/stretchr/testify
+    description: Testing toolkit with assertions, mocks, and suites
+    docs_url: https://pkg.go.dev/github.com/stretchr/testify
+    repo_url: https://github.com/stretchr/testify
+    best_practices:
+      - title: Use require for setup and fatal conditions, assert for checks
+        description: >-
+          require functions stop the test immediately on failure (like t.Fatal). assert
+          functions record the failure but continue (like t.Error). Use require for
+          preconditions where continuing makes no sense.
+        category: best-practice
+        severity: high
+        version_range: ">=1.0.0"
+        code_example: |
+          func TestUser(t *testing.T) {
+            // ✅ require — stop if setup fails
+            user, err := createTestUser()
+            require.NoError(t, err)
+            require.NotNil(t, user)
+
+            // ✅ assert — check multiple properties
+            assert.Equal(t, "Alice", user.Name)
+            assert.True(t, user.Active)
+            assert.WithinDuration(t, time.Now(), user.CreatedAt, time.Second)
+          }
+        source_url: https://pkg.go.dev/github.com/stretchr/testify/require
+
+      - title: Use suite.Suite for complex test fixtures with setup/teardown
+        description: >-
+          testify/suite provides struct-based test organization with SetupTest,
+          TearDownTest, SetupSuite, and TearDownSuite methods. Use it when multiple
+          tests share expensive setup.
+        category: best-practice
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example: |
+          type UserServiceSuite struct {
+            suite.Suite
+            db   *sql.DB
+            svc  *UserService
+          }
+
+          func (s *UserServiceSuite) SetupSuite() {
+            s.db = setupTestDB()
+            s.svc = NewUserService(s.db)
+          }
+
+          func (s *UserServiceSuite) TearDownSuite() {
+            s.db.Close()
+          }
+
+          func (s *UserServiceSuite) TestCreateUser() {
+            user, err := s.svc.Create("Alice")
+            s.Require().NoError(err)
+            s.Equal("Alice", user.Name)
+          }
+
+          func TestUserService(t *testing.T) {
+            suite.Run(t, new(UserServiceSuite))
+          }
+        source_url: https://pkg.go.dev/github.com/stretchr/testify/suite
+
+      - title: Use mock.AssertExpectations to verify all expected calls were made
+        description: >-
+          After running code under test, call AssertExpectations(t) on your mock to
+          verify all .On() expectations were fulfilled. Without this, missing calls go
+          undetected.
+        category: best-practice
+        severity: high
+        version_range: ">=1.0.0"
+        code_example: |
+          type MockStore struct {
+            mock.Mock
+          }
+
+          func (m *MockStore) Save(user User) error {
+            args := m.Called(user)
+            return args.Error(0)
+          }
+
+          func TestHandler(t *testing.T) {
+            store := new(MockStore)
+            store.On("Save", mock.AnythingOfType("User")).Return(nil)
+
+            handler := NewHandler(store)
+            handler.CreateUser("Alice")
+
+            // ✅ Verify Save was actually called
+            store.AssertExpectations(t)
+          }
+        source_url: https://pkg.go.dev/github.com/stretchr/testify/mock#Mock.AssertExpectations
+
+    anti_patterns:
+      - pattern_name: Wrong argument order in assert.Equal
+        description: Passing the actual value as the first argument and expected as the second to assert.Equal.
+        why_bad: >-
+          assert.Equal(t, expected, actual) — the first value after t is "expected".
+          Swapping them produces confusing failure messages: "expected: <actual>, got:
+          <expected>".
+        better_approach: "Remember: assert.Equal(t, expected, actual). Expected comes first."
+        severity: medium
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Wrong order — confusing failure messages
+          assert.Equal(t, user.Name, "Alice")
+          // Failure: expected: "Bob", got: "Alice" (backwards!)
+        code_example_good: |
+          // ✅ Correct order: expected, actual
+          assert.Equal(t, "Alice", user.Name)
+          // Failure: expected: "Alice", got: "Bob" (clear!)
+        source_url: https://pkg.go.dev/github.com/stretchr/testify/assert#Equal
+
+      - pattern_name: Using assert when require is needed for preconditions
+        description: Using assert (non-fatal) for setup steps that must succeed for the rest of the test to make sense.
+        why_bad: >-
+          If setup fails with assert, the test continues and produces cascading
+          nil-pointer panics or misleading failures that obscure the real problem.
+        better_approach: Use require for any step where failure should stop the test immediately.
+        severity: high
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Test panics on user.Name if err != nil
+          assert.NoError(t, err)
+          assert.Equal(t, "Alice", user.Name) // panic if user is nil
+        code_example_good: |
+          // ✅ Stop immediately if precondition fails
+          require.NoError(t, err)
+          require.NotNil(t, user)
+          assert.Equal(t, "Alice", user.Name)
+        source_url: https://pkg.go.dev/github.com/stretchr/testify/require
+
+  # ============================================================================
+  # GORM V2 (gorm.io/gorm)
+  # ============================================================================
+  - name: gorm.io/gorm
+    description: The fantastic ORM library for Go
+    docs_url: https://gorm.io
+    repo_url: https://github.com/go-gorm/gorm
+    best_practices:
+      - title: Use Preload to avoid N+1 queries
+        description: >-
+          When accessing associations, GORM lazy-loads by default, executing a separate
+          query for each parent record. Use Preload to eager-load associations in a
+          single query.
+        category: performance
+        severity: high
+        version_range: ">=2.0.0"
+        code_example: |
+          // ❌ N+1 queries — 1 for users + N for orders
+          var users []User
+          db.Find(&users)
+          for _, u := range users {
+            db.Model(&u).Association("Orders").Find(&u.Orders)
+          }
+
+          // ✅ Single query with Preload
+          var users []User
+          db.Preload("Orders").Find(&users)
+        source_url: https://gorm.io/docs/preload.html
+
+      - title: Use db.Transaction for multi-step operations
+        description: >-
+          GORM's Transaction method handles Begin, Commit, and Rollback automatically.
+          It rolls back on error or panic, preventing partial writes.
+        category: best-practice
+        severity: high
+        version_range: ">=2.0.0"
+        code_example: |
+          // ✅ Automatic rollback on error or panic
+          err := db.Transaction(func(tx *gorm.DB) error {
+            if err := tx.Create(&user).Error; err != nil {
+              return err // triggers rollback
+            }
+            if err := tx.Create(&auditLog).Error; err != nil {
+              return err // triggers rollback
+            }
+            return nil // commit
+          })
+        source_url: https://gorm.io/docs/transactions.html
+
+      - title: Always check db.Error after operations
+        description: >-
+          GORM chains methods and stores errors internally. Always check .Error after
+          the final operation. Unchecked errors silently produce empty results or
+          partial writes.
+        category: best-practice
+        severity: high
+        version_range: ">=2.0.0"
+        code_example: |
+          // ❌ Error silently ignored
+          var user User
+          db.Where("email = ?", email).First(&user)
+          // user may be zero-value if not found
+
+          // ✅ Check error
+          result := db.Where("email = ?", email).First(&user)
+          if result.Error != nil {
+            if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+              return nil, ErrUserNotFound
+            }
+            return nil, result.Error
+          }
+        source_url: https://gorm.io/docs/error_handling.html
+
+    anti_patterns:
+      - pattern_name: Using db.Model with wrong receiver in updates
+        description: Calling db.Save or db.Updates on a zero-value struct or without specifying a WHERE clause.
+        why_bad: >-
+          Without a primary key or WHERE clause, GORM may update all rows in the table
+          or insert a duplicate. GORM v2 blocks global updates by default, but db.Save
+          on a zero-ID struct silently inserts instead of updating.
+        better_approach: >-
+          Always ensure the struct has a non-zero primary key for Save, or use explicit
+          Where clauses with Updates.
+        severity: high
+        version_range: ">=2.0.0"
+        code_example_bad: |
+          // ❌ Zero ID — inserts a new record instead of updating!
+          user := User{Name: "Alice"}
+          db.Save(&user) // INSERT, not UPDATE
+        code_example_good: |
+          // ✅ Fetch first, then save
+          var user User
+          db.First(&user, userID)
+          user.Name = "Alice"
+          db.Save(&user) // UPDATE with correct ID
+
+          // ✅ Or use Updates with Where
+          db.Model(&User{}).Where("id = ?", userID).Updates(User{Name: "Alice"})
+        source_url: https://gorm.io/docs/update.html
+
+      - pattern_name: Using raw string interpolation in GORM queries
+        description: Building query strings with fmt.Sprintf or string concatenation instead of using GORM's parameterized queries.
+        why_bad: >-
+          String interpolation in SQL queries enables SQL injection attacks. GORM's
+          Where clause with ? placeholders properly escapes values.
+        better_approach: Always use parameterized queries with ? placeholders or named arguments.
+        severity: critical
+        version_range: ">=2.0.0"
+        code_example_bad: |
+          // ❌ SQL injection vulnerability
+          db.Where(fmt.Sprintf("name = '%s'", userInput)).Find(&users)
+        code_example_good: |
+          // ✅ Parameterized query
+          db.Where("name = ?", userInput).Find(&users)
+
+          // ✅ Or struct-based
+          db.Where(&User{Name: userInput}).Find(&users)
+        source_url: https://gorm.io/docs/security.html
+
+  # ============================================================================
+  # GORM V1 (jinzhu/gorm) — migrate-only
+  # ============================================================================
+  - name: github.com/jinzhu/gorm
+    description: GORM v1 (deprecated, use gorm.io/gorm)
+    docs_url: https://v1.gorm.io
+    repo_url: https://github.com/jinzhu/gorm
+    anti_patterns:
+      - pattern_name: Migrate from jinzhu/gorm to gorm.io/gorm v2
+        description: github.com/jinzhu/gorm (GORM v1) is unmaintained. The project moved to gorm.io/gorm.
+        why_bad: >-
+          GORM v1 has known bugs, no security patches, and poor performance compared to
+          v2. v2 has a rewritten codebase with context support, batch operations,
+          prepared statement caching, and proper error handling.
+        better_approach: >-
+          Follow the GORM v2 migration guide. Key changes: import path, driver
+          packages, and error handling patterns.
+        severity: high
+        version_range: ">=1.0.0"
+        code_example_bad: |
+          // ❌ Deprecated
+          import "github.com/jinzhu/gorm"
+          import _ "github.com/jinzhu/gorm/dialects/postgres"
+
+          db, err := gorm.Open("postgres", connStr)
+        code_example_good: |
+          // ✅ GORM v2
+          import "gorm.io/gorm"
+          import "gorm.io/driver/postgres"
+
+          db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
+        source_url: https://gorm.io/docs/v2_release_note.html

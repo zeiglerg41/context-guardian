@@ -2,6 +2,7 @@ import { parsePackageJson, cleanVersion } from '../src/parsers/node';
 import { parseRequirementsTxt } from '../src/parsers/python';
 import { parsePyprojectToml } from '../src/parsers/pyproject';
 import { parseCargoToml } from '../src/parsers/rust';
+import { parseGoMod } from '../src/parsers/go';
 import * as path from 'path';
 
 describe('Node.js Parser', () => {
@@ -349,5 +350,53 @@ describe('Workspace Detection', () => {
     const result = parsePackageJson(singleProjectPath);
 
     expect(result.workspaces).toBeUndefined();
+  });
+});
+
+describe('Go Parser', () => {
+  const goModPath = path.join(__dirname, '../examples/example-projects/go-app/go.mod');
+
+  test('parses go.mod correctly', () => {
+    const result = parseGoMod(goModPath);
+
+    expect(result.projectName).toBe('github.com/example/myapp');
+    expect(result.goVersion).toBe('1.21');
+    expect(result.dependencies.length).toBeGreaterThan(0);
+  });
+
+  test('distinguishes direct and indirect dependencies', () => {
+    const result = parseGoMod(goModPath);
+
+    const direct = result.dependencies.filter(d => !d.isDev);
+    const indirect = result.dependencies.filter(d => d.isDev);
+
+    expect(direct.length).toBe(4);
+    expect(indirect.length).toBe(4);
+  });
+
+  test('strips v prefix from versions', () => {
+    const result = parseGoMod(goModPath);
+    const gin = result.dependencies.find(d => d.name.includes('gin'));
+
+    expect(gin).toBeDefined();
+    expect(gin!.version).toBe('1.9.1');
+    expect(gin!.version).not.toMatch(/^v/);
+  });
+
+  test('parses full module paths', () => {
+    const result = parseGoMod(goModPath);
+
+    const pgx = result.dependencies.find(d => d.name.includes('pgx'));
+    expect(pgx).toBeDefined();
+    expect(pgx!.name).toBe('github.com/jackc/pgx/v5');
+    expect(pgx!.version).toBe('5.5.0');
+  });
+
+  test('handles pseudo-versions', () => {
+    const result = parseGoMod(goModPath);
+
+    const rendezvous = result.dependencies.find(d => d.name.includes('rendezvous'));
+    expect(rendezvous).toBeDefined();
+    expect(rendezvous!.version).toBe('0.0.0-20200823014737-9f7001d12a5f');
   });
 });

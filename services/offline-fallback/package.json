@@ -7,6 +7,8 @@
     "build": "tsc",
     "export": "tsx scripts/export-from-postgres.ts",
     "validate": "tsx scripts/validate-sqlite.ts",
+    "seed": "tsx scripts/seed-from-yaml.ts",
+    "seed:sql": "tsx scripts/seed-from-yaml.ts --generate-sql",
     "test": "jest"
   },
   "keywords": [

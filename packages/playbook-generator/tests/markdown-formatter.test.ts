@@ -54,10 +54,11 @@ describe('MarkdownFormatter', () => {
     };
   });
 
-  test('generates base playbook', () => {
+  test('generates base playbook with directive framing', () => {
     const output = formatter.generate(sampleInput);
 
-    expect(output.markdown).toContain('Context Guardian Playbook');
+    expect(output.markdown).toContain('Project Rules');
+    expect(output.markdown).toContain('Follow them when writing, reviewing, or refactoring code');
     expect(output.markdown).toContain('Test Critical Rule');
     expect(output.metadata.ruleCount).toBe(3);
     expect(output.metadata.criticalCount).toBe(1);
@@ -68,25 +69,25 @@ describe('MarkdownFormatter', () => {
       cursorCompatible: true,
     });
 
-    expect(output.markdown).toContain('Context Guardian Rules');
-    expect(output.markdown).toContain('🚨 CRITICAL');
+    expect(output.markdown).toContain('Project Rules');
+    expect(output.markdown).toContain('CRITICAL');
   });
 
-  test('includes offline warning when offline mode', () => {
+  test('does not include offline warning in output', () => {
     const offlineInput = { ...sampleInput, offline: true };
     const output = formatter.generate(offlineInput);
 
-    expect(output.markdown).toContain('Offline Mode');
-    expect(output.markdown).toContain('⚠️');
+    // Offline mode should not add noise for the AI
+    expect(output.markdown).not.toContain('Offline Mode Active');
   });
 
   test('groups rules by severity correctly', () => {
     const output = formatter.generate(sampleInput);
 
     expect(output.metadata.criticalCount).toBe(1);
-    expect(output.markdown).toContain('## Critical Rules');
-    expect(output.markdown).toContain('## High Priority Rules');
-    expect(output.markdown).toContain('## Medium Priority Rules');
+    expect(output.markdown).toContain('CRITICAL: Test Critical Rule');
+    expect(output.markdown).toContain('Test High Rule');
+    expect(output.markdown).toContain('Test Medium Rule');
   });
 
   test('includes project patterns', () => {
@@ -100,6 +101,16 @@ describe('MarkdownFormatter', () => {
     expect(output.markdown).toContain('functional');
   });
 
+  test('hides unknown component style', () => {
+    const unknownStyleInput = {
+      ...sampleInput,
+      patterns: { ...sampleInput.patterns, componentStyle: 'unknown' as any },
+    };
+    const output = formatter.generate(unknownStyleInput);
+
+    expect(output.markdown).not.toContain('unknown');
+  });
+
   test('counts unique libraries correctly', () => {
     const output = formatter.generate(sampleInput);
 
@@ -110,6 +121,32 @@ describe('MarkdownFormatter', () => {
     const output = formatter.generate(sampleInput);
 
     expect(output.metadata.securityCount).toBe(1);
+  });
+
+  test('does not HTML-escape special characters', () => {
+    const inputWithSpecialChars = {
+      ...sampleInput,
+      rules: [
+        {
+          id: '1',
+          library_id: 'lib-1',
+          type: 'best_practice' as const,
+          title: 'Use version >= 18.0',
+          description: "Don't use class components",
+          category: 'best-practice',
+          severity: 'high' as const,
+          library_name: 'react',
+          version_range: '>=18.0.0',
+        },
+      ],
+    };
+    const output = formatter.generate(inputWithSpecialChars);
+
+    expect(output.markdown).toContain('>=18.0.0');
+    expect(output.markdown).not.toContain('&gt;');
+    expect(output.markdown).not.toContain('&#x3D;');
+    expect(output.markdown).toContain("Don't");
+    expect(output.markdown).not.toContain('&#x27;');
   });
 
   test('base template output matches snapshot', () => {

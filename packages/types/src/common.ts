@@ -6,8 +6,8 @@ export type Severity = 'critical' | 'high' | 'medium' | 'low';
 
 export type RuleType = 'best_practice' | 'anti_pattern' | 'security';
 
-export type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'pip' | 'cargo' | 'unknown';
+export type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'pip' | 'cargo' | 'go' | 'unknown';
 
-export type Ecosystem = 'node' | 'python' | 'rust';
+export type Ecosystem = 'node' | 'python' | 'rust' | 'go';
 
 export type DependencySource = 'registry' | 'git' | 'path' | 'workspace';

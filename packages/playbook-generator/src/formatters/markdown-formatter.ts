@@ -41,6 +41,10 @@ export class MarkdownFormatter {
     this.hbs.registerHelper('hasCritical', function (this: any) {
       return this.criticalRules && this.criticalRules.length > 0;
     });
+
+    this.hbs.registerHelper('hasKnownComponentStyle', function (this: any) {
+      return this.patterns?.componentStyle && this.patterns.componentStyle !== 'unknown';
+    });
   }
 
   /**
@@ -89,6 +93,7 @@ export class MarkdownFormatter {
       generatedAt: input.generatedAt,
       offline: input.offline || false,
       patterns: input.patterns,
+      hasKnownComponentStyle: input.patterns?.componentStyle && String(input.patterns.componentStyle) !== 'unknown',
       libraryCount: this.countUniqueLibraries(rules),
       ruleCount: rules.length,
       criticalCount: rulesBySeverity.critical.length,

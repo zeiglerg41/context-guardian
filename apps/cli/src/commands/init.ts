@@ -61,7 +61,8 @@ export function createInitCommand(logger: Logger): Command {
           spinner.text = 'Querying offline database...';
           // Lazy import to avoid requiring better-sqlite3 for online users
           const { OfflineClient } = require('@context-guardian/offline-fallback');
-          const dbPath = path.join(__dirname, '../../data/offline.db');
+          const offlinePkgDir = path.dirname(require.resolve('@context-guardian/offline-fallback/package.json'));
+          const dbPath = path.join(offlinePkgDir, 'data', 'offline-fallback.db');
           if (!fs.existsSync(dbPath)) {
             throw new Error(
               `Offline database not found at ${dbPath}. Run "guardian sync" while online first.`
