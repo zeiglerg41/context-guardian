@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Logger } from './utils/logger';
 import { createInitCommand } from './commands/init';
 import { createSyncCommand } from './commands/sync';
 import { createValidateCommand } from './commands/validate';
+
+const pkgVersion: string = (() => {
+  try { return JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf-8')).version; }
+  catch { return '0.1.0'; }
+})();
 
 /**
  * Main CLI entry point
@@ -16,7 +23,7 @@ async function main() {
   program
     .name('guardian')
     .description('Context Guardian - AI coding guardrails for your projects')
-    .version('0.1.0');
+    .version(pkgVersion);
 
   // Register commands
   program.addCommand(createInitCommand(logger));

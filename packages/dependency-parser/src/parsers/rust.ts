@@ -1,12 +1,13 @@
 import * as fs from 'fs';
+import * as TOML from '@iarna/toml';
 import { Dependency } from '../types';
 
 /**
- * Parses a Cargo.toml file and extracts dependencies
- * 
- * Note: This is a simplified parser that handles basic TOML syntax.
- * For production, consider using a proper TOML parser library.
- * 
+ * Parses a Cargo.toml file and extracts dependencies using a proper TOML parser.
+ *
+ * Handles all TOML syntax including multi-line arrays, inline tables,
+ * workspace dependencies, and dotted keys.
+ *
  * @param cargoTomlPath - Absolute path to Cargo.toml
  * @returns Object with project metadata and dependencies
  */
@@ -17,97 +18,85 @@ export function parseCargoToml(cargoTomlPath: string): {
 } {
   try {
     const content = fs.readFileSync(cargoTomlPath, 'utf-8');
+    const parsed = TOML.parse(content);
     const dependencies: Dependency[] = [];
-    let projectName: string | undefined;
-    let projectVersion: string | undefined;
 
-    const lines = content.split('\n');
-    let currentSection: string | null = null;
+    const pkg = parsed.package as Record<string, unknown> | undefined;
+    const projectName = pkg?.name as string | undefined;
+    const projectVersion = pkg?.version as string | undefined;
 
-    for (let line of lines) {
-      line = line.trim();
-
-      // Skip empty lines and comments
-      if (!line || line.startsWith('#')) {
-        continue;
-      }
-
-      // Detect sections
-      if (line.startsWith('[') && line.endsWith(']')) {
-        currentSection = line.slice(1, -1);
-        continue;
-      }
-
-      // Parse package metadata
-      if (currentSection === 'package') {
-        if (line.startsWith('name')) {
-          projectName = extractTomlValue(line);
-        } else if (line.startsWith('version')) {
-          projectVersion = extractTomlValue(line);
-        }
-      }
-
-      // Parse dependencies
-      if (currentSection === 'dependencies' || currentSection === 'dev-dependencies') {
-        const dep = parseCargoDepLine(line, currentSection === 'dev-dependencies');
-        if (dep) {
-          dependencies.push(dep);
-        }
+    // Parse [dependencies]
+    const deps = parsed.dependencies as Record<string, unknown> | undefined;
+    if (deps) {
+      for (const [name, value] of Object.entries(deps)) {
+        const dep = parseCargoDep(name, value, false);
+        if (dep) dependencies.push(dep);
       }
     }
 
-    return {
-      projectName,
-      projectVersion,
-      dependencies,
-    };
+    // Parse [dev-dependencies]
+    const devDeps = (parsed['dev-dependencies'] as Record<string, unknown> | undefined);
+    if (devDeps) {
+      for (const [name, value] of Object.entries(devDeps)) {
+        const dep = parseCargoDep(name, value, true);
+        if (dep) dependencies.push(dep);
+      }
+    }
+
+    // Parse [build-dependencies]
+    const buildDeps = (parsed['build-dependencies'] as Record<string, unknown> | undefined);
+    if (buildDeps) {
+      for (const [name, value] of Object.entries(buildDeps)) {
+        const dep = parseCargoDep(name, value, true);
+        if (dep) dependencies.push(dep);
+      }
+    }
+
+    return { projectName, projectVersion, dependencies };
   } catch (error) {
-    throw new Error(`Failed to parse Cargo.toml: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to parse Cargo.toml: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }
 
 /**
- * Parses a single dependency line from Cargo.toml
- * 
- * Examples:
- * - serde = "1.0.195"
- * - tokio = { version = "1.35.0", features = ["full"] }
- * 
- * @param line - Single line from Cargo.toml
- * @param isDev - Whether this is a dev dependency
- * @returns Dependency object or null
+ * Parse a single Cargo dependency entry.
+ *
+ * Cargo supports several formats:
+ * - Simple string: serde = "1.0"
+ * - Table with version: tokio = { version = "1.35", features = ["full"] }
+ * - Path/git deps (no version): my-lib = { path = "../my-lib" }
+ * - Workspace deps: serde = { workspace = true }
  */
-function parseCargoDepLine(line: string, isDev: boolean): Dependency | null {
-  // Simple version: name = "version"
-  const simpleMatch = line.match(/^([a-zA-Z0-9_-]+)\s*=\s*"([^"]+)"$/);
-  if (simpleMatch) {
-    return {
-      name: simpleMatch[1],
-      version: simpleMatch[2],
-      isDev,
-    };
+function parseCargoDep(name: string, value: unknown, isDev: boolean): Dependency | null {
+  if (typeof value === 'string') {
+    return { name, version: value, isDev, source: 'registry' };
   }
 
-  // Complex version: name = { version = "version", ... }
-  const complexMatch = line.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{.*version\s*=\s*"([^"]+)".*\}$/);
-  if (complexMatch) {
-    return {
-      name: complexMatch[1],
-      version: complexMatch[2],
-      isDev,
-    };
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+
+    // Workspace deps
+    if (obj.workspace === true && !obj.version) {
+      return { name, version: 'workspace', isDev, source: 'workspace' };
+    }
+
+    // Has explicit version — registry dep (even if it also has features, etc.)
+    if (typeof obj.version === 'string') {
+      return { name, version: obj.version, isDev, source: 'registry' };
+    }
+
+    // Path dependency
+    if (obj.path) {
+      return { name, version: obj.path as string, isDev, source: 'path' };
+    }
+
+    // Git dependency
+    if (obj.git) {
+      return { name, version: obj.git as string, isDev, source: 'git' };
+    }
   }
 
   return null;
-}
-
-/**
- * Extracts a value from a TOML key-value pair
- * 
- * @param line - Line like 'name = "my-project"'
- * @returns The extracted value
- */
-function extractTomlValue(line: string): string {
-  const match = line.match(/=\s*"([^"]+)"/);
-  return match ? match[1] : '';
 }

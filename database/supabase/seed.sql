@@ -121,14 +121,14 @@ BEGIN
     INSERT INTO security_advisories (library_id, cve_id, title, description, severity, affected_versions, fixed_in_version, source_url, published_at)
     VALUES (
         react_id,
-        'CVE-2024-EXAMPLE',
-        'XSS vulnerability in dangerouslySetInnerHTML',
-        'A cross-site scripting (XSS) vulnerability exists when using dangerouslySetInnerHTML with unsanitized user input. Always sanitize HTML before rendering.',
+        'CVE-2018-6341',
+        'XSS via attribute name in SSR',
+        'React before 16.4.2 allows attackers to inject arbitrary attributes via a crafted attribute name on a server-rendered page. When using server-side rendering, an attacker can supply a malicious attribute name that bypasses the attribute whitelist.',
         'high',
-        '>=16.0.0 <18.2.0',
-        '18.2.0',
-        'https://github.com/facebook/react/security/advisories',
-        '2024-01-15 10:00:00+00'
+        '>=16.0.0 <16.4.2',
+        '16.4.2',
+        'https://nvd.nist.gov/vuln/detail/CVE-2018-6341',
+        '2018-08-03 10:00:00+00'
     );
 
 END $$;
@@ -281,6 +281,284 @@ BEGIN
         E'// ❌ Hardcoded\nconst PORT = 3000;\nconst DB_URL = "mongodb://localhost:27017/mydb";',
         E'// ✅ Environment variables\nrequire("dotenv").config();\nconst PORT = process.env.PORT || 3000;\nconst DB_URL = process.env.DATABASE_URL;',
         'https://expressjs.com/en/advanced/best-practice-performance.html'
+    );
+
+END $$;
+
+-- Context Guardian - TypeScript Seed Data
+
+INSERT INTO libraries (name, ecosystem, official_docs_url, repository_url, description)
+VALUES (
+    'typescript',
+    'npm',
+    'https://www.typescriptlang.org/docs/',
+    'https://github.com/microsoft/TypeScript',
+    'TypeScript is a typed superset of JavaScript that compiles to plain JavaScript'
+) ON CONFLICT (name) DO NOTHING;
+
+DO $$
+DECLARE
+    ts_id UUID;
+BEGIN
+    SELECT id INTO ts_id FROM libraries WHERE name = 'typescript';
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        ts_id,
+        'Use satisfies operator for type-safe inference',
+        'The satisfies operator (TS 4.9+) validates a value matches a type while preserving the narrower inferred type. Use it instead of type annotations when you want both validation and inference.',
+        'best-practice',
+        'medium',
+        '>=4.9.0',
+        E'// ✅ satisfies preserves literal types\nconst config = {\n  width: 100,\n  height: "auto"\n} satisfies Record<string, string | number>;\n// config.width is number, not string | number\n\n// ❌ Type annotation loses narrowing\nconst config2: Record<string, string | number> = {\n  width: 100\n};\n// config2.width is string | number',
+        'https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html'
+    );
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        ts_id,
+        'Enable strict mode in tsconfig',
+        'Enable "strict": true in tsconfig.json to catch more bugs at compile time. This enables strictNullChecks, noImplicitAny, and other important checks.',
+        'best-practice',
+        'critical',
+        '>=2.3.0',
+        E'// tsconfig.json\n{\n  "compilerOptions": {\n    "strict": true // Enables all strict type checking\n  }\n}',
+        'https://www.typescriptlang.org/tsconfig#strict'
+    );
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        ts_id,
+        'Use const assertions for immutable literals',
+        'Use as const to create deeply readonly types and narrow string/number literals.',
+        'best-practice',
+        'low',
+        '>=3.4.0',
+        E'// ✅ as const narrows types\nconst COLORS = ["red", "green", "blue"] as const;\n// type: readonly ["red", "green", "blue"]\n\n// ❌ Without as const\nconst COLORS2 = ["red", "green", "blue"];\n// type: string[]',
+        'https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html#const-assertions'
+    );
+
+    INSERT INTO anti_patterns (library_id, pattern_name, description, why_bad, better_approach, severity, version_range, code_example_bad, code_example_good, source_url)
+    VALUES (
+        ts_id,
+        'Overusing any type',
+        'Using any to silence type errors instead of properly typing values.',
+        'Defeats the purpose of TypeScript — disables all type checking for that value and propagates through the codebase.',
+        'Use unknown for truly unknown types and narrow with type guards. Use specific types or generics.',
+        'high',
+        '>=2.0.0',
+        E'// ❌ any everywhere\nfunction process(data: any): any {\n  return data.items.map((x: any) => x.name);\n}',
+        E'// ✅ Proper typing\ninterface Data { items: Array<{ name: string }> }\nfunction process(data: Data): string[] {\n  return data.items.map(x => x.name);\n}',
+        'https://www.typescriptlang.org/docs/handbook/2/types-from-types.html'
+    );
+
+    INSERT INTO anti_patterns (library_id, pattern_name, description, why_bad, better_approach, severity, version_range, code_example_bad, code_example_good, source_url)
+    VALUES (
+        ts_id,
+        'Non-null assertion operator abuse',
+        'Using ! (non-null assertion) to bypass null checks instead of handling null properly.',
+        'Shifts runtime errors from compile time to runtime. The value could actually be null/undefined, causing crashes.',
+        'Use optional chaining, nullish coalescing, or proper null guards.',
+        'medium',
+        '>=2.0.0',
+        E'// ❌ Non-null assertion\nconst name = user!.profile!.name!;',
+        E'// ✅ Safe access\nconst name = user?.profile?.name ?? "Unknown";',
+        'https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#non-null-assertion-operator-postfix-'
+    );
+
+END $$;
+
+-- Context Guardian - Vue.js Seed Data
+
+INSERT INTO libraries (name, ecosystem, official_docs_url, repository_url, description)
+VALUES (
+    'vue',
+    'npm',
+    'https://vuejs.org/guide/',
+    'https://github.com/vuejs/core',
+    'The Progressive JavaScript Framework'
+) ON CONFLICT (name) DO NOTHING;
+
+DO $$
+DECLARE
+    vue_id UUID;
+BEGIN
+    SELECT id INTO vue_id FROM libraries WHERE name = 'vue';
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        vue_id,
+        'Use Composition API with script setup',
+        'Vue 3 script setup is the recommended way to use Composition API in SFCs. It provides better TypeScript inference, less boilerplate, and better runtime performance.',
+        'best-practice',
+        'high',
+        '>=3.2.0',
+        E'<!-- ✅ script setup (recommended) -->\n<script setup lang="ts">\nimport { ref, computed } from "vue";\nconst count = ref(0);\nconst doubled = computed(() => count.value * 2);\n</script>\n\n<!-- ❌ Options API in Vue 3 -->\n<script>\nexport default {\n  data() { return { count: 0 } },\n  computed: { doubled() { return this.count * 2 } }\n}\n</script>',
+        'https://vuejs.org/api/sfc-script-setup.html'
+    );
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        vue_id,
+        'Use defineModel for two-way binding in Vue 3.4+',
+        'defineModel macro simplifies v-model support in components, replacing the manual prop + emit pattern.',
+        'best-practice',
+        'medium',
+        '>=3.4.0',
+        E'<!-- ✅ Vue 3.4+ defineModel -->\n<script setup>\nconst model = defineModel();\n</script>\n<template>\n  <input v-model="model" />\n</template>',
+        'https://vuejs.org/api/sfc-script-setup.html#definemodel'
+    );
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        vue_id,
+        'Use v-memo for expensive list rendering',
+        'v-memo skips re-rendering of list items when their dependencies haven''t changed. Use it for large lists with complex templates.',
+        'performance',
+        'low',
+        '>=3.2.0',
+        E'<div v-for="item in list" :key="item.id" v-memo="[item.id === selected]">\n  <ExpensiveComponent :item="item" :selected="item.id === selected" />\n</div>',
+        'https://vuejs.org/api/built-in-directives.html#v-memo'
+    );
+
+    INSERT INTO anti_patterns (library_id, pattern_name, description, why_bad, better_approach, severity, version_range, code_example_bad, code_example_good, source_url)
+    VALUES (
+        vue_id,
+        'Mutating props directly',
+        'Changing prop values inside a child component instead of emitting events.',
+        'Vue enforces one-way data flow. Direct prop mutation causes warnings, makes data flow hard to trace, and breaks in production.',
+        'Emit events to the parent and let the parent update the value.',
+        'high',
+        '>=3.0.0',
+        E'// ❌ Mutating props\nprops.items.push(newItem);',
+        E'// ✅ Emit event\nconst emit = defineEmits(["update:items"]);\nemit("update:items", [...props.items, newItem]);',
+        'https://vuejs.org/guide/components/props.html#one-way-data-flow'
+    );
+
+END $$;
+
+-- Context Guardian - Django Seed Data
+
+INSERT INTO libraries (name, ecosystem, official_docs_url, repository_url, description)
+VALUES (
+    'django',
+    'pip',
+    'https://docs.djangoproject.com/',
+    'https://github.com/django/django',
+    'The Web framework for perfectionists with deadlines'
+) ON CONFLICT (name) DO NOTHING;
+
+DO $$
+DECLARE
+    django_id UUID;
+BEGIN
+    SELECT id INTO django_id FROM libraries WHERE name = 'django';
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        django_id,
+        'Use select_related and prefetch_related to avoid N+1 queries',
+        'Django ORM will execute a new query for each related object access. Use select_related (foreign keys) and prefetch_related (many-to-many) to batch these.',
+        'performance',
+        'critical',
+        '>=3.0',
+        E'# ❌ N+1 queries\nfor book in Book.objects.all():\n    print(book.author.name)  # Extra query per book!\n\n# ✅ Single query with JOIN\nfor book in Book.objects.select_related("author").all():\n    print(book.author.name)  # No extra queries',
+        'https://docs.djangoproject.com/en/stable/ref/models/querysets/#select-related'
+    );
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        django_id,
+        'Use async views in Django 4.1+',
+        'Django 4.1+ has stable async view support. Use async views for I/O-bound operations to improve concurrency.',
+        'performance',
+        'medium',
+        '>=4.1',
+        E'# ✅ Async view\nimport httpx\nfrom django.http import JsonResponse\n\nasync def weather_view(request):\n    async with httpx.AsyncClient() as client:\n        resp = await client.get("https://api.weather.com/data")\n    return JsonResponse(resp.json())',
+        'https://docs.djangoproject.com/en/stable/topics/async/'
+    );
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        django_id,
+        'Always set CSRF_TRUSTED_ORIGINS in Django 4.0+',
+        'Django 4.0 added stricter CSRF origin checking. You must set CSRF_TRUSTED_ORIGINS for cross-origin POST requests to work.',
+        'security',
+        'high',
+        '>=4.0',
+        E'# settings.py\nCSRF_TRUSTED_ORIGINS = [\n    "https://yourdomain.com",\n    "https://www.yourdomain.com",\n]',
+        'https://docs.djangoproject.com/en/stable/ref/settings/#csrf-trusted-origins'
+    );
+
+    INSERT INTO anti_patterns (library_id, pattern_name, description, why_bad, better_approach, severity, version_range, code_example_bad, code_example_good, source_url)
+    VALUES (
+        django_id,
+        'Using raw SQL instead of ORM',
+        'Writing raw SQL queries when the Django ORM can express the same logic.',
+        'Bypasses Django''s SQL injection protection, makes code database-dependent, and harder to maintain.',
+        'Use the ORM with F(), Q(), annotate(), and aggregate() for complex queries.',
+        'high',
+        '>=3.0',
+        E'# ❌ Raw SQL\nfrom django.db import connection\nwith connection.cursor() as cursor:\n    cursor.execute("SELECT * FROM books WHERE author_id = %s", [author_id])',
+        E'# ✅ ORM\nbooks = Book.objects.filter(author_id=author_id)',
+        'https://docs.djangoproject.com/en/stable/topics/db/queries/'
+    );
+
+END $$;
+
+-- Context Guardian - Axios Seed Data
+
+INSERT INTO libraries (name, ecosystem, official_docs_url, repository_url, description)
+VALUES (
+    'axios',
+    'npm',
+    'https://axios-http.com/docs/intro',
+    'https://github.com/axios/axios',
+    'Promise based HTTP client for the browser and node.js'
+) ON CONFLICT (name) DO NOTHING;
+
+DO $$
+DECLARE
+    axios_id UUID;
+BEGIN
+    SELECT id INTO axios_id FROM libraries WHERE name = 'axios';
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        axios_id,
+        'Use interceptors for auth tokens and error handling',
+        'Axios interceptors let you centralize auth header injection and error handling instead of repeating logic in every request.',
+        'best-practice',
+        'medium',
+        '>=0.19.0',
+        E'// ✅ Centralized auth\naxios.interceptors.request.use(config => {\n  config.headers.Authorization = `Bearer ${getToken()}`;\n  return config;\n});\n\n// ✅ Centralized error handling\naxios.interceptors.response.use(\n  response => response,\n  error => {\n    if (error.response?.status === 401) redirectToLogin();\n    return Promise.reject(error);\n  }\n);',
+        'https://axios-http.com/docs/interceptors'
+    );
+
+    INSERT INTO best_practices (library_id, title, description, category, severity, version_range, code_example, source_url)
+    VALUES (
+        axios_id,
+        'Always set request timeouts',
+        'Without timeouts, requests can hang indefinitely. Set a timeout to prevent stuck requests from blocking the UI or server.',
+        'best-practice',
+        'high',
+        '>=0.19.0',
+        E'// ✅ Set timeout\nconst client = axios.create({\n  baseURL: "https://api.example.com",\n  timeout: 10000 // 10 seconds\n});',
+        'https://axios-http.com/docs/req_config'
+    );
+
+    INSERT INTO anti_patterns (library_id, pattern_name, description, why_bad, better_approach, severity, version_range, code_example_bad, code_example_good, source_url)
+    VALUES (
+        axios_id,
+        'Not handling request cancellation',
+        'Starting HTTP requests without providing a way to cancel them when the component unmounts or the user navigates away.',
+        'Causes memory leaks, state updates on unmounted components, and wasted bandwidth.',
+        'Use AbortController (axios 0.22+) to cancel requests on cleanup.',
+        'medium',
+        '>=0.22.0',
+        E'// ❌ No cancellation\nuseEffect(() => {\n  axios.get("/data").then(setData);\n}, []);',
+        E'// ✅ With cancellation\nuseEffect(() => {\n  const controller = new AbortController();\n  axios.get("/data", { signal: controller.signal }).then(setData);\n  return () => controller.abort();\n}, []);',
+        'https://axios-http.com/docs/cancellation'
     );
 
 END $$;

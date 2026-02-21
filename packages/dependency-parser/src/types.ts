@@ -3,6 +3,7 @@
  */
 export type {
   PackageManager,
+  DependencySource,
   Dependency,
   DependencyManifest,
   PackageManagerConfig,

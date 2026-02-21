@@ -264,9 +264,9 @@ context-guardian/
 
 ## Reference Documentation
 
-For full context on the project architecture and strategy, see:
-- `/home/ubuntu/phase-0_planning/context_guardian_project_plan.md`
-- `/home/ubuntu/phase-0_planning/product_architecture.md`
+For full context on the project architecture and strategy, see the docs in the monorepo root:
+- `docs/phase-01_MVP/00_audit-report.md`
+- `docs/phase-01_MVP/00_interface-map.md`
 
 ## Next Steps
 

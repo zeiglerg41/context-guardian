@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@context-guardian/types": "file:../types",
+    "@iarna/toml": "^2.2.5",
     "semver": "^7.6.0"
   }
 }

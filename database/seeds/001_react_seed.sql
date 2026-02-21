@@ -121,14 +121,14 @@ BEGIN
     INSERT INTO security_advisories (library_id, cve_id, title, description, severity, affected_versions, fixed_in_version, source_url, published_at)
     VALUES (
         react_id,
-        'CVE-2024-EXAMPLE',
-        'XSS vulnerability in dangerouslySetInnerHTML',
-        'A cross-site scripting (XSS) vulnerability exists when using dangerouslySetInnerHTML with unsanitized user input. Always sanitize HTML before rendering.',
+        'CVE-2018-6341',
+        'XSS via attribute name in SSR',
+        'React before 16.4.2 allows attackers to inject arbitrary attributes via a crafted attribute name on a server-rendered page. When using server-side rendering, an attacker can supply a malicious attribute name that bypasses the attribute whitelist.',
         'high',
-        '>=16.0.0 <18.2.0',
-        '18.2.0',
-        'https://github.com/facebook/react/security/advisories',
-        '2024-01-15 10:00:00+00'
+        '>=16.0.0 <16.4.2',
+        '16.4.2',
+        'https://nvd.nist.gov/vuln/detail/CVE-2018-6341',
+        '2018-08-03 10:00:00+00'
     );
 
 END $$;

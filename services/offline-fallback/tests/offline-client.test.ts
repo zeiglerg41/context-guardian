@@ -96,11 +96,18 @@ describe('OfflineClient', () => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run('sa-1', 'lib-1', 'CVE-2021-1234', 'XSS vulnerability', 'React DOM XSS issue', 'high', '<17.0.0', '17.0.0', 'https://example.com/cve');
 
+    // Second library for queryMultipleDependencies test
+    db.prepare('INSERT INTO libraries (id, name, ecosystem) VALUES (?, ?, ?)').run('lib-2', 'express', 'npm');
+    db.prepare(`
+      INSERT INTO best_practices (id, library_id, title, description, category, severity, version_range)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run('bp-2', 'lib-2', 'Use helmet', 'Add security headers with helmet', 'security', 'high', '>=4.0.0');
+
     // Metadata
     db.prepare(`
       INSERT INTO export_metadata (export_date, total_libraries, total_best_practices, total_anti_patterns, total_security_advisories, source_database, version)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(new Date().toISOString(), 1, 1, 1, 1, 'test', '0.1.0');
+    `).run(new Date().toISOString(), 2, 2, 1, 1, 'test', '0.1.0');
 
     db.close();
 
@@ -154,6 +161,30 @@ describe('OfflineClient', () => {
     expect(allRules.map(r => r.type).sort()).toEqual(['anti_pattern', 'best_practice', 'security']);
   });
 
+  test('queries multiple dependencies at once', () => {
+    const rules = client.queryMultipleDependencies([
+      { name: 'react', version: '18.2.0' },
+      { name: 'express', version: '4.18.0' },
+    ]);
+
+    // react: 1 best practice + 1 anti-pattern (no security for v18)
+    // express: 1 best practice
+    expect(rules.length).toBe(3);
+
+    const libraryNames = [...new Set(rules.map(r => r.library_name))];
+    expect(libraryNames.sort()).toEqual(['express', 'react']);
+  });
+
+  test('queryMultipleDependencies skips unknown libraries', () => {
+    const rules = client.queryMultipleDependencies([
+      { name: 'react', version: '18.2.0' },
+      { name: 'nonexistent-lib', version: '1.0.0' },
+    ]);
+
+    // Only react rules should be returned
+    expect(rules.every(r => r.library_name === 'react')).toBe(true);
+  });
+
   test('checks if library exists', () => {
     expect(client.hasLibrary('react')).toBe(true);
     expect(client.hasLibrary('nonexistent')).toBe(false);
@@ -163,15 +194,15 @@ describe('OfflineClient', () => {
     const metadata = client.getMetadata();
     expect(metadata).not.toBeNull();
     expect(metadata?.version).toBe('0.1.0');
-    expect(metadata?.total_best_practices).toBe(1);
+    expect(metadata?.total_best_practices).toBe(2);
     expect(metadata?.total_anti_patterns).toBe(1);
     expect(metadata?.total_security_advisories).toBe(1);
   });
 
   test('gets database stats', () => {
     const stats = client.getStats();
-    expect(stats.totalLibraries).toBe(1);
-    expect(stats.totalBestPractices).toBe(1);
+    expect(stats.totalLibraries).toBe(2);
+    expect(stats.totalBestPractices).toBe(2);
     expect(stats.totalAntiPatterns).toBe(1);
     expect(stats.totalSecurityAdvisories).toBe(1);
   });

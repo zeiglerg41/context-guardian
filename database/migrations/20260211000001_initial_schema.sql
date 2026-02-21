@@ -2,9 +2,6 @@
 -- Migration: 001_initial_schema
 -- Description: Creates the core tables for storing version-aware best practices
 
--- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS "pg_trgm"; -- For fuzzy text search
-
 -- ============================================================================
 -- LIBRARIES TABLE
 -- ============================================================================
@@ -64,7 +61,8 @@ CREATE TABLE security_advisories (
     source_url TEXT NOT NULL, -- Link to advisory (GitHub, Snyk, etc.)
     published_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
     CONSTRAINT valid_advisory_severity CHECK (severity IN ('critical', 'high', 'medium', 'low'))
 );
 
@@ -114,6 +112,9 @@ CREATE TRIGGER update_best_practices_updated_at BEFORE UPDATE ON best_practices
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_anti_patterns_updated_at BEFORE UPDATE ON anti_patterns
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_security_advisories_updated_at BEFORE UPDATE ON security_advisories
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================

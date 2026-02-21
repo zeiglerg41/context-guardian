@@ -9,3 +9,5 @@ export type RuleType = 'best_practice' | 'anti_pattern' | 'security';
 export type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'pip' | 'cargo' | 'unknown';
 
 export type Ecosystem = 'node' | 'python' | 'rust';
+
+export type DependencySource = 'registry' | 'git' | 'path' | 'workspace';

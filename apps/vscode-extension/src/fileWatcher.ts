@@ -23,50 +23,24 @@ export class FileWatcher {
       return;
     }
 
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
       return;
     }
 
-    // Watch package.json (npm/yarn/pnpm)
-    const packageJsonWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, 'package.json')
-    );
-    packageJsonWatcher.onDidChange(() => this.onFileChange('package.json'));
-    packageJsonWatcher.onDidCreate(() => this.onFileChange('package.json'));
-    this.watchers.push(packageJsonWatcher);
+    const depFiles = ['**/package.json', '**/requirements.txt', '**/pyproject.toml', '**/Cargo.toml'];
 
-    // Watch requirements.txt (pip)
-    const requirementsWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, 'requirements.txt')
-    );
-    requirementsWatcher.onDidChange(() => this.onFileChange('requirements.txt'));
-    requirementsWatcher.onDidCreate(() => this.onFileChange('requirements.txt'));
-    this.watchers.push(requirementsWatcher);
-
-    // Watch Cargo.toml (Rust)
-    const cargoWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, 'Cargo.toml')
-    );
-    cargoWatcher.onDidChange(() => this.onFileChange('Cargo.toml'));
-    cargoWatcher.onDidCreate(() => this.onFileChange('Cargo.toml'));
-    this.watchers.push(cargoWatcher);
-
-    // Watch Gemfile (Ruby)
-    const gemfileWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, 'Gemfile')
-    );
-    gemfileWatcher.onDidChange(() => this.onFileChange('Gemfile'));
-    gemfileWatcher.onDidCreate(() => this.onFileChange('Gemfile'));
-    this.watchers.push(gemfileWatcher);
-
-    // Watch go.mod (Go)
-    const goModWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(workspaceFolder, 'go.mod')
-    );
-    goModWatcher.onDidChange(() => this.onFileChange('go.mod'));
-    goModWatcher.onDidCreate(() => this.onFileChange('go.mod'));
-    this.watchers.push(goModWatcher);
+    for (const folder of workspaceFolders) {
+      for (const depFile of depFiles) {
+        const watcher = vscode.workspace.createFileSystemWatcher(
+          new vscode.RelativePattern(folder, depFile)
+        );
+        watcher.onDidChange(() => this.onFileChange(depFile));
+        watcher.onDidCreate(() => this.onFileChange(depFile));
+        watcher.onDidDelete(() => this.onFileChange(depFile));
+        this.watchers.push(watcher);
+      }
+    }
 
     this.isActive = true;
     console.log('Context Guardian file watcher started');

@@ -1,19 +1,26 @@
 import * as vscode from 'vscode';
 import { FileWatcher } from './fileWatcher';
-import { CLIRunner } from './cliRunner';
+import { CLIRunner, setOutputChannel } from './cliRunner';
 import { PlaybookManager } from './playbookManager';
+import { PLAYBOOK_FILENAME } from './constants';
 
 let fileWatcher: FileWatcher | undefined;
 let cliRunner: CLIRunner | undefined;
 let playbookManager: PlaybookManager | undefined;
+let statusBarItem: vscode.StatusBarItem | undefined;
+let outputChannel: vscode.OutputChannel | undefined;
 
 /**
  * Extension activation
  */
 export function activate(context: vscode.ExtensionContext) {
-  console.log('Context Guardian extension is now active');
+  // Create output channel for user-visible logging
+  outputChannel = vscode.window.createOutputChannel('Context Guardian');
+  context.subscriptions.push(outputChannel);
+  outputChannel.appendLine('Context Guardian extension activated');
 
   // Initialize components
+  setOutputChannel(outputChannel!);
   cliRunner = new CLIRunner();
   playbookManager = new PlaybookManager();
   fileWatcher = new FileWatcher(cliRunner, playbookManager);
@@ -48,6 +55,15 @@ export function activate(context: vscode.ExtensionContext) {
       viewPlaybook();
     })
   );
+
+  // Create status bar item
+  statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  statusBarItem.command = 'context-guardian.viewPlaybook';
+  context.subscriptions.push(statusBarItem);
+  updateStatusBar();
+
+  // Register file watcher for disposal on deactivation
+  context.subscriptions.push({ dispose: () => fileWatcher?.dispose() });
 
   // Start file watcher if auto-sync is enabled
   const config = vscode.workspace.getConfiguration('contextGuardian');
@@ -90,7 +106,7 @@ async function initPlaybook() {
     {
       location: vscode.ProgressLocation.Notification,
       title: 'Context Guardian',
-      cancellable: false,
+      cancellable: true,
     },
     async (progress) => {
       progress.report({ message: 'Initializing playbook...' });
@@ -100,6 +116,7 @@ async function initPlaybook() {
 
         if (result.success) {
           await playbookManager!.refresh();
+          updateStatusBar();
           vscode.window.showInformationMessage(
             `✓ Playbook created: ${result.ruleCount} rules`
           );
@@ -141,7 +158,7 @@ async function syncPlaybook() {
     {
       location: vscode.ProgressLocation.Notification,
       title: 'Context Guardian',
-      cancellable: false,
+      cancellable: true,
     },
     async (progress) => {
       progress.report({ message: 'Syncing playbook...' });
@@ -151,6 +168,7 @@ async function syncPlaybook() {
 
         if (result.success) {
           await playbookManager!.refresh();
+          updateStatusBar();
           vscode.window.showInformationMessage(
             `✓ Playbook updated: ${result.ruleCount} rules`
           );
@@ -208,7 +226,7 @@ function viewPlaybook() {
 
   const playbookPath = vscode.Uri.joinPath(
     workspaceFolder.uri,
-    '.guardian.md'
+    PLAYBOOK_FILENAME
   );
 
   vscode.workspace.openTextDocument(playbookPath).then(
@@ -221,6 +239,28 @@ function viewPlaybook() {
       );
     }
   );
+}
+
+/**
+ * Update status bar with playbook metadata
+ */
+function updateStatusBar() {
+  if (!statusBarItem || !playbookManager) {
+    return;
+  }
+
+  const metadata = playbookManager.getMetadata();
+  if (metadata) {
+    statusBarItem.text = `$(shield) Guardian: ${metadata.ruleCount} rules`;
+    statusBarItem.tooltip = `Context Guardian\n${metadata.ruleCount} rules | ${metadata.criticalCount} critical | ${metadata.securityCount} security`;
+    statusBarItem.show();
+  } else if (playbookManager.exists()) {
+    statusBarItem.text = '$(shield) Guardian';
+    statusBarItem.tooltip = 'Context Guardian playbook active';
+    statusBarItem.show();
+  } else {
+    statusBarItem.hide();
+  }
 }
 
 /**

@@ -87,14 +87,3 @@ export function detectPackageManager(projectPath: string): DetectionResult {
     configPath: '',
   };
 }
-
-/**
- * Checks if a file exists at the given path
- */
-export function fileExists(filePath: string): boolean {
-  try {
-    return fs.existsSync(filePath);
-  } catch {
-    return false;
-  }
-}

@@ -1,6 +1,8 @@
 # Claude Code
 .claude/
 CLAUDE.md
+CLAUDE_START-HERE.md
+**/CLAUDE_START-HERE.md
 supabase_commands.md
 
 # Project-specific secrets

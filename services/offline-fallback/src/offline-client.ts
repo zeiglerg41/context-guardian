@@ -179,29 +179,25 @@ export class OfflineClient {
     `;
 
     const allAdvisories = this.db.prepare(query).all(libraryName) as SecurityAdvisory[];
-
-    // Filter by affected_versions
-    const cleanVersion = semver.coerce(version)?.version || version;
-    return allAdvisories.filter((advisory) => {
-      try {
-        return semver.satisfies(cleanVersion, advisory.affected_versions);
-      } catch {
-        return true; // If parsing fails, assume affected for safety
-      }
-    });
+    return this.filterByVersion(allAdvisories, version, 'affected_versions');
   }
 
   /**
    * Filter rows by version using semver
    */
-  private filterByVersion<T extends { version_range?: string | null }>(rows: T[], version: string): T[] {
+  private filterByVersion<T>(rows: T[], version: string, field: string = 'version_range'): T[] {
     const cleanVersion = semver.coerce(version)?.version || version;
 
     return rows.filter((row) => {
-      if (!row.version_range) return true;
+      const range = (row as any)[field];
+      if (!range) return true;
       try {
-        return semver.satisfies(cleanVersion, row.version_range);
+        return semver.satisfies(cleanVersion, range);
       } catch {
+        // Unparseable range — include the rule with a warning.
+        // This is intentionally inclusive: better to show a possibly-irrelevant
+        // rule than to silently hide a relevant one.
+        console.warn(`filterByVersion: unparseable range "${range}" for version "${version}" — including rule`);
         return true;
       }
     });

@@ -37,8 +37,24 @@ export class PlaybookService {
       };
     }
 
+    // Build full dependency list: explicit deps + pattern-detected frameworks
+    const deps = [...request.dependencies];
+    if (request.patterns) {
+      const depNames = new Set(deps.map(d => d.name));
+      const extraLibs: string[] = [
+        ...(request.patterns.frameworks || []),
+        ...(request.patterns.stateManagement ? [request.patterns.stateManagement] : []),
+      ];
+      for (const lib of extraLibs) {
+        if (!depNames.has(lib)) {
+          deps.push({ name: lib, version: 'latest' });
+          depNames.add(lib);
+        }
+      }
+    }
+
     // Fetch rules from database
-    const rules = await this.fetchAllRules(request.dependencies);
+    const rules = await this.fetchAllRules(deps);
 
     // Build response
     const response: GeneratePlaybookResponse = {
@@ -54,26 +70,27 @@ export class PlaybookService {
   }
 
   /**
-   * Fetches all rules (best practices, anti-patterns, security advisories) for given dependencies
+   * Fetches all rules (best practices, anti-patterns, security advisories) for given dependencies.
+   * Runs all queries in parallel for performance.
    */
   private async fetchAllRules(dependencies: Dependency[]): Promise<PlaybookRule[]> {
+    const results = await Promise.allSettled(
+      dependencies.map(async (dep) => {
+        const [bestPractices, antiPatterns, advisories] = await Promise.all([
+          this.fetchBestPractices(dep),
+          this.fetchAntiPatterns(dep),
+          this.fetchSecurityAdvisories(dep),
+        ]);
+        return [...bestPractices, ...antiPatterns, ...advisories];
+      })
+    );
+
     const allRules: PlaybookRule[] = [];
-
-    for (const dep of dependencies) {
-      try {
-        // Fetch best practices
-        const bestPractices = await this.fetchBestPractices(dep);
-        allRules.push(...bestPractices);
-
-        // Fetch anti-patterns
-        const antiPatterns = await this.fetchAntiPatterns(dep);
-        allRules.push(...antiPatterns);
-
-        // Fetch security advisories
-        const advisories = await this.fetchSecurityAdvisories(dep);
-        allRules.push(...advisories);
-      } catch (error) {
-        console.error(`Error fetching rules for ${dep.name}:`, error);
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allRules.push(...result.value);
+      } else {
+        console.error('Error fetching rules:', result.reason);
       }
     }
 

@@ -111,4 +111,31 @@ describe('MarkdownFormatter', () => {
 
     expect(output.metadata.securityCount).toBe(1);
   });
+
+  test('base template output matches snapshot', () => {
+    const output = formatter.generate(sampleInput, {
+      projectName: 'Snapshot Test Project',
+      projectType: 'web',
+    });
+
+    expect(output.markdown).toMatchSnapshot();
+  });
+
+  test('cursor template output matches snapshot', () => {
+    const output = formatter.generate(sampleInput, {
+      projectName: 'Snapshot Test Project',
+      cursorCompatible: true,
+    });
+
+    expect(output.markdown).toMatchSnapshot();
+  });
+
+  test('offline mode output matches snapshot', () => {
+    const offlineInput = { ...sampleInput, offline: true };
+    const output = formatter.generate(offlineInput, {
+      projectName: 'Offline Project',
+    });
+
+    expect(output.markdown).toMatchSnapshot();
+  });
 });

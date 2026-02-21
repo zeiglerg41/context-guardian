@@ -4,6 +4,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import dotenv from 'dotenv';
 
+const pkgVersion: string = (() => {
+  try { return JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf-8')).version; }
+  catch { return '0.1.0'; }
+})();
+
 dotenv.config();
 
 /**
@@ -33,27 +38,23 @@ async function exportToSQLite() {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  // Delete existing database
-  if (fs.existsSync(OUTPUT_PATH)) {
-    fs.unlinkSync(OUTPUT_PATH);
-  }
-
+  const isIncremental = fs.existsSync(OUTPUT_PATH);
   const db = new Database(OUTPUT_PATH);
 
-  // Read and execute schema
-  console.log('📋 Creating SQLite schema...');
+  // Create schema if new database (or ensure it exists for incremental)
+  console.log(isIncremental ? '📋 Incremental export — schema already exists' : '📋 Creating SQLite schema...');
   const schemaPath = path.join(__dirname, '../data/schema.sql');
   const schema = fs.readFileSync(schemaPath, 'utf-8');
-  db.exec(schema);
+  db.exec(schema); // CREATE IF NOT EXISTS — safe to re-run
 
   // Prepare statements
   const insertLibrary = db.prepare(`
-    INSERT INTO libraries (id, name, ecosystem, official_docs_url, repository_url, description, created_at, updated_at)
+    INSERT OR REPLACE INTO libraries (id, name, ecosystem, official_docs_url, repository_url, description, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertBestPractice = db.prepare(`
-    INSERT INTO best_practices (
+    INSERT OR REPLACE INTO best_practices (
       id, library_id, title, description, category, severity,
       version_range, code_example, source_url, created_at, updated_at
     )
@@ -61,7 +62,7 @@ async function exportToSQLite() {
   `);
 
   const insertAntiPattern = db.prepare(`
-    INSERT INTO anti_patterns (
+    INSERT OR REPLACE INTO anti_patterns (
       id, library_id, pattern_name, description, why_bad, better_approach,
       version_range, code_example_bad, code_example_good, source_url, created_at, updated_at
     )
@@ -69,7 +70,7 @@ async function exportToSQLite() {
   `);
 
   const insertSecurityAdvisory = db.prepare(`
-    INSERT INTO security_advisories (
+    INSERT OR REPLACE INTO security_advisories (
       id, library_id, cve_id, title, description, severity,
       affected_versions, fixed_in_version, source_url, published_at, created_at
     )
@@ -77,7 +78,7 @@ async function exportToSQLite() {
   `);
 
   const insertMetadata = db.prepare(`
-    INSERT INTO export_metadata (
+    INSERT OR REPLACE INTO export_metadata (
       export_date, total_libraries, total_best_practices,
       total_anti_patterns, total_security_advisories, source_database, version
     )
@@ -231,7 +232,7 @@ async function exportToSQLite() {
       antiPatterns.length,
       securityAdvisories.length,
       DATABASE_URL.split('@')[1] || 'unknown',
-      '0.1.0'
+      pkgVersion
     );
 
     // Get file size

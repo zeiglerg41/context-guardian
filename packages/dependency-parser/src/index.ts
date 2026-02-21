@@ -38,6 +38,8 @@ export function analyzeDependencies(projectPath: string): DependencyManifest {
         dependencies: parsed.dependencies,
         projectName: parsed.projectName,
         projectVersion: parsed.projectVersion,
+        workspaces: parsed.workspaces,
+        engines: parsed.engines,
       };
       break;
     }

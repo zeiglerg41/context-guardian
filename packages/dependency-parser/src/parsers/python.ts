@@ -38,6 +38,25 @@ export function parseRequirementsTxt(requirementsPath: string): Dependency[] {
         continue;
       }
 
+      // Editable installs: "-e git+..." or "-e ."
+      if (line.startsWith('-e ') || line.startsWith('--editable ')) {
+        const target = line.replace(/^(-e|--editable)\s+/, '');
+        if (target.startsWith('git+') || target.includes('://')) {
+          const name = extractGitName(target);
+          if (name) dependencies.push({ name, version: target, isDev: false, source: 'git' });
+        } else {
+          dependencies.push({ name: target, version: target, isDev: false, source: 'path' });
+        }
+        continue;
+      }
+
+      // Direct git URLs (not editable)
+      if (line.startsWith('git+') || line.match(/^https?:\/\/.*\.(git|zip|tar\.gz)/)) {
+        const name = extractGitName(line);
+        if (name) dependencies.push({ name, version: line, isDev: false, source: 'git' });
+        continue;
+      }
+
       // Parse the dependency
       const dep = parsePythonDependency(line);
       if (dep) {
@@ -74,11 +93,33 @@ function parsePythonDependency(line: string): Dependency | null {
   const operator = match[2];
   const version = match[3];
 
+  const rawSpec = operator && version ? `${operator}${version}` : undefined;
+  const cleaned = version ? cleanPythonVersion(version) : 'latest';
+
   return {
     name,
-    version: version ? cleanPythonVersion(version) : 'latest',
+    version: cleaned,
+    ...(rawSpec && rawSpec !== cleaned && { rawVersion: rawSpec }),
     isDev: false, // requirements.txt doesn't distinguish dev deps
+    source: 'registry',
   };
+}
+
+/**
+ * Extracts a package name from a git URL.
+ * e.g. "git+https://github.com/user/repo.git@v1.0#egg=mypackage" → "mypackage"
+ * Falls back to the repo name if no #egg= fragment is present.
+ */
+function extractGitName(url: string): string | null {
+  // Check for #egg=name
+  const eggMatch = url.match(/#egg=([a-zA-Z0-9_-]+)/);
+  if (eggMatch) return eggMatch[1].toLowerCase();
+
+  // Fall back to repo name
+  const repoMatch = url.match(/\/([a-zA-Z0-9_-]+?)(?:\.git)?(?:@.*)?$/);
+  if (repoMatch) return repoMatch[1].toLowerCase();
+
+  return null;
 }
 
 /**

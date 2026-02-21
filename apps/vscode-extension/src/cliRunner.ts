@@ -17,6 +17,12 @@ export type SyncResult = CLIResult;
 /**
  * Runs Context Guardian CLI commands
  */
+let outputChannel: vscode.OutputChannel | undefined;
+
+export function setOutputChannel(channel: vscode.OutputChannel) {
+  outputChannel = channel;
+}
+
 export class CLIRunner {
   private cliInstalledCache: boolean | null = null;
 
@@ -53,10 +59,14 @@ export class CLIRunner {
       }
 
       // Run command — execFile prevents shell injection
-      const { stdout } = await execFileAsync(cliPath, [command], {
+      const { stdout, stderr } = await execFileAsync(cliPath, [command], {
         cwd: workspacePath,
         timeout: 30000,
       });
+
+      if (stderr) {
+        outputChannel?.appendLine(`[${command}] stderr: ${stderr}`);
+      }
 
       // Parse output for metadata
       const ruleCount = this.extractNumber(stdout, /(\d+) rules?/i);

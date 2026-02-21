@@ -96,12 +96,3 @@ export interface BestPractice {
   max_version?: string;
 }
 
-export interface CrawlerConfig {
-  baseUrl: string;
-  targetPages: string[];
-  selectors?: {
-    title?: string;
-    content?: string;
-    codeBlock?: string;
-  };
-}

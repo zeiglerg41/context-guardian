@@ -1,6 +1,13 @@
 import Handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+
+// Read version from package.json at module load time
+const pkgJsonPath = path.resolve(__dirname, '..', 'package.json');
+const pkgVersion: string = (() => {
+  try { return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')).version; }
+  catch { return '0.1.0'; }
+})();
 import {
   PlaybookInput,
   PlaybookOptions,
@@ -12,24 +19,26 @@ import {
  * Markdown formatter for Context Guardian playbooks
  */
 export class MarkdownFormatter {
+  private hbs: typeof Handlebars;
   private templates: Map<string, HandlebarsTemplateDelegate> = new Map();
 
   constructor() {
+    this.hbs = Handlebars.create();
     this.registerHelpers();
     this.loadTemplates();
   }
 
   /**
-   * Register Handlebars helpers
+   * Register Handlebars helpers on this instance's isolated environment
    */
   private registerHelpers(): void {
     // Join array helper
-    Handlebars.registerHelper('join', (arr: string[], separator: string) => {
+    this.hbs.registerHelper('join', (arr: string[], separator: string) => {
       return arr ? arr.join(separator) : '';
     });
 
     // Conditional helpers
-    Handlebars.registerHelper('hasCritical', function (this: any) {
+    this.hbs.registerHelper('hasCritical', function (this: any) {
       return this.criticalRules && this.criticalRules.length > 0;
     });
   }
@@ -45,14 +54,14 @@ export class MarkdownFormatter {
       path.join(templatesDir, 'base.hbs'),
       'utf-8'
     );
-    this.templates.set('base', Handlebars.compile(baseTemplate));
+    this.templates.set('base', this.hbs.compile(baseTemplate));
 
     // Load cursor template
     const cursorTemplate = fs.readFileSync(
       path.join(templatesDir, 'cursor.hbs'),
       'utf-8'
     );
-    this.templates.set('cursor', Handlebars.compile(cursorTemplate));
+    this.templates.set('cursor', this.hbs.compile(cursorTemplate));
   }
 
   /**
@@ -63,11 +72,15 @@ export class MarkdownFormatter {
       projectName = 'Your Project',
       projectType = 'general',
       cursorCompatible = false,
+      includeExamples = true,
       groupBySeverity = true,
     } = options;
 
+    // Strip code examples if option is disabled
+    const rules = includeExamples ? input.rules : input.rules.map(r => ({ ...r, code_example: undefined }));
+
     // Group rules by severity
-    const rulesBySeverity = this.groupBySeverity(input.rules);
+    const rulesBySeverity = this.groupBySeverity(rules);
 
     // Prepare template data
     const templateData = {
@@ -76,15 +89,15 @@ export class MarkdownFormatter {
       generatedAt: input.generatedAt,
       offline: input.offline || false,
       patterns: input.patterns,
-      libraryCount: this.countUniqueLibraries(input.dependencies),
-      ruleCount: input.rules.length,
+      libraryCount: this.countUniqueLibraries(rules),
+      ruleCount: rules.length,
       criticalCount: rulesBySeverity.critical.length,
-      securityCount: input.rules.filter((r) => r.type === 'security').length,
+      securityCount: rules.filter((r) => r.type === 'security').length,
       criticalRules: rulesBySeverity.critical,
       highRules: rulesBySeverity.high,
       mediumRules: rulesBySeverity.medium,
       lowRules: rulesBySeverity.low,
-      version: '0.1.0',
+      version: pkgVersion,
     };
 
     // Select template
@@ -127,10 +140,10 @@ export class MarkdownFormatter {
   }
 
   /**
-   * Count unique libraries
+   * Count unique libraries that have matching rules
    */
-  private countUniqueLibraries(dependencies: any[]): number {
-    const uniqueNames = new Set(dependencies.map((d) => d.name));
+  private countUniqueLibraries(rules: PlaybookRule[]): number {
+    const uniqueNames = new Set(rules.map((r) => r.library_name));
     return uniqueNames.size;
   }
 }

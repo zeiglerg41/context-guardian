@@ -489,7 +489,7 @@ This means the CLI only needs **one** transform: `PlaybookRule[]` → playbook-g
 ### Schema (tables, key columns)
 
 ```
-PostgreSQL (Supabase) — project ref: etgkathcesyyejvsqnyo
+PostgreSQL (Supabase)
 
 libraries
   id          UUID PK (gen_random_uuid())

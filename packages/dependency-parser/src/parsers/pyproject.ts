@@ -240,5 +240,11 @@ function parsePepDependency(depStr: string, isDev: boolean): Dependency | null {
     }
   }
 
-  return { name, version, isDev };
+  return {
+    name,
+    version,
+    ...(versionPart && versionPart !== version && { rawVersion: versionPart }),
+    isDev,
+    source: 'registry',
+  };
 }

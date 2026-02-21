@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { TreeSitterWrapper } from './parsers/tree-sitter-wrapper';
 import { JavaScriptAnalyzer } from './parsers/javascript-analyzer';
@@ -32,13 +33,13 @@ export class ASTAnalyzer {
    * Analyzes a project and returns detected patterns
    */
   async analyzeProject(config: AnalysisConfig): Promise<ProjectPatterns> {
-    const files = this.collectFiles(config);
+    const files = await this.collectFiles(config);
     const analyses: FileAnalysis[] = [];
 
     // Analyze each file
     for (const filePath of files) {
       try {
-        const analysis = this.analyzeFile(filePath);
+        const analysis = await this.analyzeFile(filePath);
         if (analysis) {
           analyses.push(analysis);
         }
@@ -55,9 +56,9 @@ export class ASTAnalyzer {
   /**
    * Analyzes a single file
    */
-  private analyzeFile(filePath: string): FileAnalysis | null {
+  private async analyzeFile(filePath: string): Promise<FileAnalysis | null> {
     const ext = path.extname(filePath);
-    const sourceCode = fs.readFileSync(filePath, 'utf-8');
+    const sourceCode = await fsp.readFile(filePath, 'utf-8');
 
     try {
       const tree = this.treeParser.parse(sourceCode, ext);
@@ -74,20 +75,21 @@ export class ASTAnalyzer {
   }
 
   /**
-   * Collects files to analyze based on configuration
+   * Collects files to analyze based on configuration (async I/O)
    */
-  private collectFiles(config: AnalysisConfig): string[] {
+  private async collectFiles(config: AnalysisConfig): Promise<string[]> {
     const files: string[] = [];
     const { rootDir, extensions, excludeDirs, maxFiles } = config;
 
-    const traverse = (dir: string) => {
+    const traverse = async (dir: string) => {
       if (maxFiles && files.length >= maxFiles) {
         return;
       }
 
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      const entries = await fsp.readdir(dir, { withFileTypes: true });
 
       for (const entry of entries) {
+        if (maxFiles && files.length >= maxFiles) break;
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
@@ -95,7 +97,7 @@ export class ASTAnalyzer {
           if (excludeDirs.includes(entry.name)) {
             continue;
           }
-          traverse(fullPath);
+          await traverse(fullPath);
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name);
           if (extensions.includes(ext)) {
@@ -105,7 +107,7 @@ export class ASTAnalyzer {
       }
     };
 
-    traverse(rootDir);
+    await traverse(rootDir);
     return files;
   }
 

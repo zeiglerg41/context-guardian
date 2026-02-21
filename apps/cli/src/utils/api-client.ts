@@ -17,7 +17,7 @@ export class ApiClient {
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'context-guardian-cli/0.1.0',
+        'User-Agent': `context-guardian-cli/${require('../../package.json').version}`,
       },
     });
 

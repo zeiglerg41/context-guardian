@@ -4,7 +4,7 @@
   "description": "Markdown playbook generator for Context Guardian",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/templates dist/templates",
     "test": "jest",
     "example": "tsx examples/generate-playbook.ts"
   },

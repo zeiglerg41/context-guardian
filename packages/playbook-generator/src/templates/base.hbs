@@ -63,12 +63,11 @@ Run `guardian sync` when online for the most up-to-date guidance.
 ---
 {{/each}}
 
-{{#if hasCritical}}
-{{else}}
+{{#unless hasCritical}}
 ✅ No critical issues found.
 
 ---
-{{/if}}
+{{/unless}}
 
 ## High Priority Rules
 

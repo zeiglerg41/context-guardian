@@ -1,0 +1,14 @@
+{
+  "name": "example-mixed-sources",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.18.0",
+    "my-local-lib": "file:../my-local-lib",
+    "my-git-lib": "git+https://github.com/user/my-git-lib.git#v1.0.0",
+    "my-github-lib": "github:user/my-github-lib"
+  },
+  "devDependencies": {
+    "typescript": "workspace:*",
+    "my-linked-tool": "link:../../tools/my-tool"
+  }
+}

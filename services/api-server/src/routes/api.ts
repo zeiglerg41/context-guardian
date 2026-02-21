@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { PlaybookService } from '../services/playbook-service';
 import { validateRequest, GeneratePlaybookSchema, Variables } from '../middleware/validation';
 import { requireApiKey } from '../middleware/auth';
+import { rateLimiter } from '../middleware/rate-limiter';
 import { GeneratePlaybookRequest } from '../types';
 
 /**
@@ -17,6 +18,7 @@ export function createApiRoutes(playbookService: PlaybookService) {
    */
   api.post(
     '/v1/generate-playbook',
+    rateLimiter(30, 60_000),
     requireApiKey(),
     validateRequest(GeneratePlaybookSchema),
     async (c) => {

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { PLAYBOOK_FILENAME } from './constants';
 
 /**
  * Manages playbook file and provides metadata
@@ -15,7 +16,7 @@ export class PlaybookManager {
       return;
     }
 
-    const playbookPath = path.join(workspaceFolder.uri.fsPath, '.guardian.md');
+    const playbookPath = path.join(workspaceFolder.uri.fsPath, PLAYBOOK_FILENAME);
 
     // Check if playbook is currently open
     const openEditor = vscode.window.visibleTextEditors.find(
@@ -39,7 +40,7 @@ export class PlaybookManager {
       return null;
     }
 
-    const playbookPath = path.join(workspaceFolder.uri.fsPath, '.guardian.md');
+    const playbookPath = path.join(workspaceFolder.uri.fsPath, PLAYBOOK_FILENAME);
 
     if (!fs.existsSync(playbookPath)) {
       return null;
@@ -79,7 +80,7 @@ export class PlaybookManager {
       return false;
     }
 
-    const playbookPath = path.join(workspaceFolder.uri.fsPath, '.guardian.md');
+    const playbookPath = path.join(workspaceFolder.uri.fsPath, PLAYBOOK_FILENAME);
     return fs.existsSync(playbookPath);
   }
 
